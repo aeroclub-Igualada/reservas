@@ -131,7 +131,7 @@ function parseHoro(av,t){t=String(t||'').trim();const m=t.match(/^(\d+)(?:[.,](\
   const mi=m[2]?+m[2]:0;if(mi>59)return null;return h*60+mi}
 function horoInput(av,min){return av.tipo_horometro==='decimas'?fmtHoro(av,min):Math.floor(min/60)+','+pad(min%60)}
 const AYUDA_HORO=av=>av.tipo_horometro==='decimas'?'Número con coma o punto y la décima: 1286,2 (1 décima = 6 min).':'Horas, coma o punto, y los minutos de la aguja: 1472,20 = 1472 h 20 min.';
-const BONOS_H=[5,10];
+const BONOS_H=[6,10];
 const TIPOS=[['normal','Normal'],['escuela','Escuela'],['divulgacion','Divulgación'],['mantenimiento','Mantenimiento']];
 const TIPO_TXT=Object.fromEntries(TIPOS);
 const TIPO_CHIP={normal:'',escuela:'sp',divulgacion:'ok',mantenimiento:'warn'};
