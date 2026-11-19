@@ -103,13 +103,15 @@ tr.off td{opacity:.5;text-decoration:line-through}
 .wkr .m{display:inline-block;font-weight:600;color:var(--pc,var(--accent))}
 .wkr.me{background:var(--okbg)}.wkr.sp{background:var(--spbg)}
 .wkr.blocked{background:repeating-linear-gradient(45deg,var(--line) 0 5px,var(--surface) 5px 10px);color:var(--muted)}
-.rk{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#5d636b;border:2px solid #1c1f23;border-radius:12px;padding:10px 14px}
-.rk .c{display:grid;justify-items:center;gap:4px;min-width:0}
-.rk .l{font:700 1rem var(--f-disp);letter-spacing:.1em;color:#f1f3f5;line-height:1}
-.rk .w{background:#081118;border:2px solid #2a2f35;border-radius:8px;padding:2px 6px;width:100%;box-sizing:border-box;text-align:center}
-.rk .d{font:clamp(1.5rem,6.5vw,2rem) 'Share Tech Mono',ui-monospace,monospace;color:#39c8ff;letter-spacing:.03em;line-height:1.2;white-space:nowrap}
-.rk .d small{font-size:.55em;color:#1f8fbf}
-.rk .s{font:.78rem 'Share Tech Mono',ui-monospace,monospace;color:#e2e6ea;letter-spacing:.06em;white-space:nowrap}
+.saludo{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.saludo>div:first-child{min-width:0}
+.saludo h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk{position:relative;background:#5d636b;border:2px solid #1c1f23;border-radius:9px;padding:5px 12px;display:grid;gap:3px;flex:none}
+.rk div{display:flex;align-items:center;justify-content:space-between;gap:7px}
+.rk i{font:700 14px var(--f-disp);color:#f1f3f5;letter-spacing:.08em;font-style:normal}
+.rk b{font:19px 'Share Tech Mono',ui-monospace,monospace;color:#39c8ff;font-weight:400;background:#081118;border-radius:4px;padding:0 6px;line-height:1.25}
+.rk .sc{position:absolute;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#b9c0c7,#4a5058 72%);box-shadow:inset 0 0 0 1px #15181b}
+.rk .sc:nth-of-type(1){left:3px;top:3px}.rk .sc:nth-of-type(2){right:3px;top:3px}.rk .sc:nth-of-type(3){left:3px;bottom:3px}.rk .sc:nth-of-type(4){right:3px;bottom:3px}
 .parte{display:flex;gap:8px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
 .parte button{flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--line);background:transparent;color:var(--muted);font:600 .9rem var(--f-body,inherit);cursor:pointer}
 .parte button.on{background:var(--soft);border-color:var(--accent);color:var(--accent);cursor:default}
@@ -470,7 +472,7 @@ function vLogin(){
 function top(){
   return `<div class="top"><b><img src="${LOGO}" alt="" class="logo-top">Aeroclub · Reservas</b><div class="r">
   ${isAdmin()?`<button class="pill ${S.modo==='socio'?'on':''}" data-act="modo" data-v="socio">Socio</button><button class="pill ${S.modo==='admin'?'on':''}" data-act="modo" data-v="admin">Administrador</button>`:''}
-  <button class="pill" data-act="logout">${esc(me().nombre)} · salir</button></div></div>
+  <button class="pill" data-act="logout">${esc(me().nombre.length>18?me().nombre.split(' ')[0]:me().nombre)} · salir</button></div></div>
   <div class="parte"><button data-act="ir-logbook">Mi logbook</button><button class="on">Reservas del club</button></div>
 `;
 }
@@ -523,10 +525,10 @@ function grafica6(uid){
   return `<div class="card"><div class="row"><span class="lbl">Lo volado · últimos 6 meses</span><span class="sm">${fmtMin(tot)} · ${nv} vuelo${nv===1?'':'s'}</span></div><div style="margin-top:8px">${svg}</div><div class="sm" id="tip" style="min-height:1.2em">Toca una barra para ver el mes.</div></div>`;
 }
 const RK_D=['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'],RK_M=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-function rkVals(){const d=new Date(),p=n=>String(n).padStart(2,'0');return {lt:p(d.getHours())+':'+p(d.getMinutes())+'<small>:'+p(d.getSeconds())+'</small>',ut:p(d.getUTCHours())+':'+p(d.getUTCMinutes())+'<small>:'+p(d.getUTCSeconds())+'</small>',ld:RK_D[d.getDay()]+' '+p(d.getDate())+' '+RK_M[d.getMonth()],ud:'DOF/'+String(d.getUTCFullYear()).slice(2)+p(d.getUTCMonth()+1)+p(d.getUTCDate())}}
+function rkVals(){const d=new Date(),p=n=>String(n).padStart(2,'0');return {lt:p(d.getHours())+':'+p(d.getMinutes()),ut:p(d.getUTCHours())+':'+p(d.getUTCMinutes())+'Z'}}
 function relojATC(){const v=rkVals();
-  return `<div class="rk" role="img" aria-label="Hora local y hora UTC"><div class="c"><span class="l">LOCAL</span><div class="w"><span class="d rk-lt">${v.lt}</span></div><span class="s rk-ld">${v.ld}</span></div><div class="c"><span class="l">UTC</span><div class="w"><span class="d rk-ut">${v.ut}</span></div><span class="s rk-ud">${v.ud}</span></div></div>`}
-setInterval(()=>{const e=document.querySelectorAll('.rk-lt');if(!e.length)return;const v=rkVals();document.querySelectorAll('.rk-lt').forEach(x=>x.innerHTML=v.lt);document.querySelectorAll('.rk-ut').forEach(x=>x.innerHTML=v.ut);document.querySelectorAll('.rk-ld').forEach(x=>x.textContent=v.ld);document.querySelectorAll('.rk-ud').forEach(x=>x.textContent=v.ud)},1000);
+  return `<div class="rk" role="img" aria-label="Hora local y hora UTC"><span class="sc"></span><span class="sc"></span><span class="sc"></span><span class="sc"></span><div><i>LCL</i><b class="rk-lt">${v.lt}</b></div><div><i>UTC</i><b class="rk-ut">${v.ut}</b></div></div>`}
+setInterval(()=>{if(!document.querySelector('.rk-lt'))return;const v=rkVals();document.querySelectorAll('.rk-lt').forEach(x=>x.textContent=v.lt);document.querySelectorAll('.rk-ut').forEach(x=>x.textContent=v.ut)},5000);
 function vInicio(){
   const u=me(),s=saldo(u.id),t=today(),now=t+'T'+pad(new Date().getHours())+':'+pad(new Date().getMinutes());
   const pendSP=reservasActivas().filter(r=>r.safety_pilot_id===u.id&&r.sp_estado==='pendiente'&&r.fin>=now).sort((a,b)=>a.inicio.localeCompare(b.inicio));
@@ -534,7 +536,7 @@ function vInicio(){
   const comoSP=reservasActivas().filter(r=>r.safety_pilot_id===u.id&&r.sp_estado==='aceptado'&&r.fin>=now).sort((a,b)=>a.inicio.localeCompare(b.inicio));
   const bonos=bonosFIFO(u.id),ultimo=bonos.filter(b=>b.quedan>0)[0]||bonos[bonos.length-1];
   const avisos=avisosDe(u);
-  let h=`<div><span class="lbl">${fmtDia(t)}</span><h2>Hola, ${esc(u.nombre.split(' ')[0])}</h2></div>${relojATC()}`;
+  let h=`<div class="saludo"><div><span class="lbl">${fmtDia(t)}</span><h2>Hola, ${esc(u.nombre.split(' ')[0])}</h2></div>${relojATC()}</div>`;
   if(avisos.length)h+=`<div class="card" style="display:grid;gap:6px"><span class="lbl">Avisos</span>${avisos.map(([c,txt])=>`<div class="msg ${c}">${c==='bad'?'⛔':'⚠'} ${esc(txt)}</div>`).join('')}</div>`;
   h+=mantLicencia(u.id);
   pendSP.forEach(r=>{h+=`<div class="card" style="border-color:var(--sp)"><div class="row"><span class="chip sp">Te piden de safety pilot</span><span class="sm">Pendiente</span></div>

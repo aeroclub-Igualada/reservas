@@ -76,7 +76,8 @@ html[data-theme=light] .tg{color:var(--fg);background:color-mix(in srgb,var(--c)
 .wrapc{position:relative}
 .dd{position:absolute;z-index:20;left:0;width:max(100%,290px);top:100%;margin-top:4px;background:var(--pop);border:1px solid var(--line);border-radius:10px;max-height:260px;overflow:auto;box-shadow:0 10px 24px rgba(0,0,0,.6)}
 .dd button{display:flex;gap:10px;align-items:baseline;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 12px;text-align:left}
-.dd button:last-child{border:0}.dd b{font-family:var(--f-m);font-size:14px}.dd span{font-size:12.5px;color:var(--muted)}.dd .h{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;background:#10151B}
+.dd button:last-child{border:0}.dd b{font-family:var(--f-m);font-size:14px}.dd span{font-size:12.5px;color:var(--muted)}.dd .h{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;background:var(--card)}
+main>.ddopen{z-index:30}
 .cw{display:flex;gap:6px}.cw .inp{flex:1}.cw .tb{flex:none;width:44px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--accent)}
 .tbtn{width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;font:500 20px var(--f-m)}
 .tbtn.ph{color:var(--muted);font-size:16px;font-family:var(--f-b)}
@@ -172,8 +173,8 @@ function placeLabel(v){if(!v)return'—';const e=findEntry(v);if(e)return e.v;if
 function placeName(code){const l=placeLabel(code);return l===code?'':l}
 function normPlace(v){v=(v||'').trim();if(!v)return'';if(/^[A-Za-z]{4}$/.test(v))return v.toUpperCase();const e=findEntry(v);return e?e.v:tcase(v)}
 const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-function applyTheme(){const t=(DB&&DB.theme)||'dark';const d=t==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):t;document.documentElement.dataset.theme=d}
-function blank(){return{v:1,owner:'',books:[],flights:[],aircraft:[],pilots:[],favs:['LEIG'],customAero:[],lastBackup:0,backupMonths:6,gauge:{mode:'fixed',id:1,tap:true},theme:'dark'}}
+function applyTheme(){const t=(DB&&DB.theme)||'light';const d=t==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):t;document.documentElement.dataset.theme=d}
+function blank(){return{v:1,owner:'',books:[],flights:[],aircraft:[],pilots:[],favs:['LEIG'],customAero:[],lastBackup:0,backupMonths:6,gauge:{mode:'fixed',id:1,tap:true},theme:'light'}}
 /* ---------- datos: nube del club (Firebase) ---------- */
 const FIREBASE_CONFIG={apiKey:"AIzaSyDk3br7XYabu5-SbPgq1IN77vVg-Ji7luo",authDomain:"reservas-aeroclub.firebaseapp.com",projectId:"reservas-aeroclub",storageBucket:"reservas-aeroclub.firebasestorage.app",messagingSenderId:"240046395578",appId:"1:240046395578:web:7f5382ddf1501635683283"};
 const FB_VERSION='10.12.2';
@@ -203,7 +204,7 @@ function vueloClub(v,rol){
  if(rol==='ins'){f.fn='INS';f.crew=nombreDe(v.piloto_id)+' (alumno)'}
  else if(v.tipo==='escuela'){f.dual=true;f.withInst=true;f.inst=nombreDe(v.safety_pilot_id)}
  else if(v.safety_pilot_id)f.crew=nombreDe(v.safety_pilot_id)+' (safety pilot)';
- else if(v.acompanante)f.crew='Acompañante';
+ else f.crew=v.acompanante?'Acompañado':'Solo';
  return f}
 function rebuild(){
  const st=RAWS?JSON.parse(RAWS):{};
@@ -412,7 +413,7 @@ function tExport(b,p){p=p||'';
 function periodFlights(b){let l=bookFlights(b.id).slice().reverse();if(S.per==='year')l=l.filter(f=>(f.date||'').startsWith(String(new Date().getFullYear())));if(S.per==='custom'){if(S.pfrom)l=l.filter(f=>f.date>=S.pfrom);if(S.pto)l=l.filter(f=>f.date<=S.pto)}return l}
 
 /* ---------- formulario ---------- */
-function newFlight(){return{id:uid(),book:S.book,date:today(),reg:'',dep:'',depT:'',arr:'',arrT:'',min:null,man:false,ldD:1,ldN:0,pic:DB.owner||'',crew:'',dual:false,withInst:false,inst:'',rem:'',ifr:'',night:'',multi:false,me:false,trD:'',trT:'',trM:''}}
+function newFlight(){const base=isFreeBook(S.book)?'':((DB.favs||[])[0]||'');return{id:uid(),book:S.book,date:today(),reg:'',dep:base,depT:'',arr:base,arrT:'',min:null,man:false,ldD:1,ldN:0,pic:DB.owner||'',crew:'Solo',dual:false,withInst:false,inst:'',rem:'',ifr:'',night:'',multi:false,me:false,trD:'',trT:'',trM:''}}
 const picName=f=>(!f.pic||f.pic==='Propio')?(DB.owner||'Propio'):f.pic;
 function placeInfoHTML(v){v=(v||'').trim();if(!v)return'';const e=findEntry(v);if(e)return'<b>'+esc(e.n)+'</b>'+(e.m?' · '+esc(e.m):'');const c=DB.customAero.find(x=>x.code===v.toUpperCase());return c&&c.name?'<b>'+esc(c.name)+'</b>':''}
 function updatePlaceInfo(){['dep','arr'].forEach(k=>{const e=$('#pi_'+k);if(e&&S.f)e.innerHTML=placeInfoHTML(S.f[k])})}
@@ -478,14 +479,20 @@ function aeroFind(qraw,favs,custom,limit){
 function items(kind,q){q=(q||'').trim();
  if(kind==='air')return DB.aircraft.filter(a=>!q||nz(a.reg+' '+a.model).includes(nz(q))).map(a=>({v:a.reg,s:(a.model||'')+(a.eng==='multi'?' · multimotor':' · monomotor')}));
  if(kind==='pil'){const l=[{v:DB.owner||'',s:'propietario'}].filter(x=>x.v).concat(DB.pilots.map(p=>({v:p.name,s:p.role||''})));return l.filter(x=>!q||nz(x.v+' '+x.s).includes(nz(q)))}
- if(kind==='crew')return DB.pilots.concat(DB.owner?[{name:DB.owner,role:'propietario'}]:[]).filter(p=>!q||nz(p.name+' '+p.role).includes(nz(q))).map(p=>({v:p.name,s:p.role||''}));
+ if(kind==='crew')return [{name:'Solo',role:'sin nadie más a bordo'},{name:'Acompañado',role:'2 personas a bordo'}].concat(DB.pilots).filter(p=>!q||nz(p.name+' '+p.role).includes(nz(q))).map(p=>({v:p.name,s:p.role||''}));
  {const r=aeroFind(q,DB.favs,DB.customAero,40);if(!r.some(x=>x.v==='ZZZZ')){const z={v:'ZZZZ',s:'Lugar no especificado · anota dónde en Observaciones'};if(q)r.push(z);else r.unshift(z)}return r}}
 function showDD(inp,kind,full){closeDD();const w=inp.closest('.wrapc');const list=items(kind,full?'':inp.value);const d=document.createElement('div');d.className='dd';
  let h='';if(!list.length)h='<div class="h">'+(kind==='aero'?'Sin parecidos. Puedes escribir el código igualmente.':kind==='air'?'Aún no hay aeronaves. Escribe la matrícula o añádelas en Ajustes.':'Sin resultados. Puedes escribir el nombre o añadirlo en Ajustes.')+'</div>';
  else{if(kind==='aero'&&!inp.value.trim()&&!full)h+='<div class="h">Favoritos y aeródromos LE…</div>';h+=list.map(x=>'<button data-v="'+esc(x.v)+'"><b'+(/^[A-Z0-9]{3,4}$/.test(x.v)?'':' style="font-family:var(--f-b)"')+'>'+esc(x.v)+'</b><span>'+esc(x.s||'')+(x.f?' ★':'')+'</span></button>').join('')}
- d.innerHTML=h;w.appendChild(d);if(inp.getBoundingClientRect().left>window.innerWidth/2-20){d.style.left='auto';d.style.right='0'}
- d.onmousedown=d.ontouchstart=e=>{const b=e.target.closest('button');if(!b)return;e.preventDefault();inp.value=b.dataset.v;S.f[inp.dataset.f]=b.dataset.v;closeDD();if(inp.dataset.f==='reg'){autoAircraft();updateAcInfo()}updatePlaceInfo()}}
-function closeDD(){document.querySelectorAll('.dd').forEach(x=>x.remove())}
+ d.innerHTML=h;w.appendChild(d);
+ let row=w;while(row.parentElement&&row.parentElement.tagName!=='MAIN')row=row.parentElement;if(row.parentElement)row.classList.add('ddopen');
+ const vw=document.documentElement.clientWidth,wr=w.getBoundingClientRect(),dr=d.getBoundingClientRect();if(dr.right>vw-8){d.style.left=Math.max(8-wr.left,vw-8-dr.width-wr.left)+'px'}
+ const pick=b=>{inp.value=b.dataset.v;S.f[inp.dataset.f]=b.dataset.v;closeDD();if(inp.dataset.f==='reg'){autoAircraft();updateAcInfo()}updatePlaceInfo()};
+ let t0=null;
+ d.addEventListener('touchstart',e=>{const t=e.touches[0];t0={x:t.clientX,y:t.clientY}},{passive:true});
+ d.addEventListener('touchend',e=>{const b=e.target.closest('button');const t=e.changedTouches[0];const mv=t0&&(Math.abs(t.clientX-t0.x)>10||Math.abs(t.clientY-t0.y)>10);t0=null;if(!b||mv)return;e.preventDefault();pick(b)});
+ d.addEventListener('mousedown',e=>{const b=e.target.closest('button');e.preventDefault();if(b)pick(b)})}
+function closeDD(){document.querySelectorAll('.dd').forEach(x=>x.remove());document.querySelectorAll('.ddopen').forEach(x=>x.classList.remove('ddopen'))}
 function autoAircraft(){const a=DB.aircraft.find(x=>x.reg===(S.f.reg||'').toUpperCase());if(a)S.f.me=a.eng==='multi'}
 
 /* ---------- rueda de hora ---------- */
@@ -516,7 +523,7 @@ function openTime(k){const lab=k==='depT'?'Hora de salida':'Hora de llegada';let
 }
 
 /* ---------- ajustes (borrador + un solo botón Guardar) ---------- */
-const mk=s=>({owner:s.owner||'',backupMonths:s.backupMonths||6,pilots:s.pilots||[],aircraft:s.aircraft||[],favs:s.favs||[],customAero:s.customAero||[],gauge:Object.assign({mode:'fixed',id:1,tap:true},s.gauge||{}),theme:s.theme||'dark'});
+const mk=s=>({owner:s.owner||'',backupMonths:s.backupMonths||6,pilots:s.pilots||[],aircraft:s.aircraft||[],favs:s.favs||[],customAero:s.customAero||[],gauge:Object.assign({mode:'fixed',id:1,tap:true},s.gauge||{}),theme:s.theme||'light'});
 function openSettings(){S.prev=S.screen==='book'?'book':'books';if(!S.set)S.set=JSON.parse(JSON.stringify(mk(DB)));S.screen='settings';render();window.scrollTo(0,0)}
 const dirty=()=>!!S.set&&JSON.stringify(mk(S.set))!==JSON.stringify(mk(DB));
 function updateDirty(){const e=$('#dirty');if(e)e.textContent=dirty()?'● Hay cambios sin guardar':''}
@@ -597,7 +604,7 @@ function csv(b){b=b||book();const rows=[['Fecha','Matricula','Salida','Hora sali
  periodFlights(b).forEach(f=>rows.push([f.date,f.reg,f.dep,f.depT,f.arr,f.arrT,f.min,f.ldD,f.ldN,isDual(f)?'Si':'',f.inst||'',picName(f),f.crew,f.night,f.ifr,f.me?'Si':'',f.multi?'Si':'',f.trD,f.trT,f.trM,f.rem]));
  const t='﻿'+rows.map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(';')).join('\r\n');shareOrDownload(fileBase(b)+'.csv',t,'text/csv')}
 const fileBase=b=>('Logbook '+b.type+' '+today()+(DB.owner?' '+DB.owner:'')).replace(/[\\/:*?"<>|]+/g,'').trim();
-const obs=f=>(f.inst?'Instructor: '+f.inst+'. ':'')+(f.crew?'Con '+f.crew+'. ':'')+(f.rem||'');
+const obs=f=>(f.inst?'Instructor: '+f.inst+'. ':'')+(f.crew&&f.crew!=='Solo'?(f.crew==='Acompañado'?'Acompañado. ':'Con '+f.crew+'. '):'')+(f.rem||'');
 function doPrint(b,l){if(!l.length){toast('No hay vuelos en ese periodo');return}
  const R=14,pages=[];for(let i=0;i<l.length;i+=R)pages.push(l.slice(i,i+R));
  const cols=f=>{const air=DB.aircraft.find(a=>a.reg===f.reg);const me=f.me||(air&&air.eng==='multi');const m=+f.min||0;return{se:(!f.multi&&!me)?m:0,me:(!f.multi&&me)?m:0,mp:f.multi?m:0,tot:m,ldD:+f.ldD||0,ldN:+f.ldN||0,night:+f.night||0,ifr:+f.ifr||0,PIC:(!isDual(f)&&f.fn!=='COP'&&f.fn!=='INS')?m:0,COP:f.fn==='COP'?m:0,DUAL:isDual(f)?m:0,INS:f.fn==='INS'?m:0,sint:+f.trM||0,air}};
