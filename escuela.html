@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Escuela · Aeroclub</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#103a28">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AeroClub">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+
+
+
+
+
+
+
+
+:root{
+  --bg:#edf1f5;--surface:#fff;--ink:#0d2236;--muted:#566879;--line:#d3dce6;
+  --accent:#1769c8;--accent-ink:#fff;--soft:#e3edf9;
+  --ok:#1c8a4b;--okbg:#e0f3e8;--warn:#a86500;--warnbg:#fdf0d6;--bad:#c62d2d;--badbg:#fbe3e3;
+  --sp:#b4570a;--spbg:#fde9d6;--panel:#0d2236;--digit:#f2f6fa;
+  --f-disp:'Barlow Semi Condensed','Arial Narrow',sans-serif;--f-body:'IBM Plex Sans',system-ui,sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (min-width:99999px){:root{
+  --bg:#0a1520;--surface:#122233;--ink:#e6eef6;--muted:#93a6b8;--line:#24384c;
+  --accent:#4c9bff;--accent-ink:#06182b;--soft:#15304d;
+  --ok:#3cc27a;--okbg:#10321f;--warn:#f0b23e;--warnbg:#3a2c0c;--bad:#ff7a7a;--badbg:#3d1717;
+  --sp:#ffa55c;--spbg:#3d2410;--panel:#050b12;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body)}
+h1,h2,h3{font-family:var(--f-disp);font-weight:700;line-height:1.1;margin:0}
+h2{font-size:1.6rem}h3{font-size:1.15rem}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:20;background:var(--panel);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.top b{font-family:var(--f-disp);font-size:1.15rem;letter-spacing:.02em}
+.top .r{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pill{border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:99px;padding:4px 12px;font-size:.8rem;cursor:pointer}
+.pill.on{background:#fff;color:var(--panel)}
+.demo{background:var(--warnbg);color:var(--warn);font-size:.78rem;padding:6px 16px;text-align:center}
+.wrap{max-width:520px;margin:0 auto;padding:16px 14px 96px;display:grid;gap:12px}
+.wrap.wide{max-width:1150px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px}
+.lbl{font:500 .66rem var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.big{font:700 2.1rem/1 var(--f-disp);font-variant-numeric:tabular-nums}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sm{font-size:.8rem;color:var(--muted)}
+.chip{display:inline-block;font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--accent);white-space:nowrap}
+.chip.ok{background:var(--okbg);color:var(--ok)}.chip.warn{background:var(--warnbg);color:var(--warn)}.chip.bad{background:var(--badbg);color:var(--bad)}.chip.sp{background:var(--spbg);color:var(--sp)}
+.neg{color:var(--bad);font-weight:600}
+.btn{border:0;cursor:pointer;font-weight:600;background:var(--accent);color:var(--accent-ink);padding:10px 14px;border-radius:10px;text-align:center}
+.btn.ghost{background:var(--soft);color:var(--accent)}
+.btn.danger{background:var(--badbg);color:var(--bad)}
+.btn.sm{padding:6px 10px;font-size:.8rem;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.full{width:100%}
+.field{display:grid;gap:3px}
+.field label{font-size:.76rem;font-weight:600}
+input,select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-height:38px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--soft);border-color:var(--accent)}
+input[readonly]{background:var(--bg);color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.two>*,.three>*{min-width:0}
+input[type=date]{min-width:0;max-width:100%}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:var(--surface);padding:5px 11px;border-radius:99px;font-size:.78rem;font-weight:500;cursor:pointer}
+.chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.msg{font-size:.8rem;padding:8px 10px;border-radius:9px}
+.msg.ok{background:var(--okbg);color:var(--ok)}.msg.warn{background:var(--warnbg);color:var(--warn)}.msg.bad{background:var(--badbg);color:var(--bad)}.msg.info{background:var(--soft);color:var(--accent)}
+.pbar{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin:8px 0 4px}
+.pbar i{display:block;height:100%;background:var(--accent)}
+.odo{display:inline-flex;gap:2px;background:var(--panel);padding:4px;border-radius:6px}
+.odo span{font:500 1.3rem var(--f-mono);background:linear-gradient(#24405c,#0d1c2c 50%,#24405c);color:var(--digit);width:1.1em;text-align:center;border-radius:2px;line-height:1.45}
+.odo span.t{background:linear-gradient(#ffb066,#ff8a1f 50%,#ffb066);color:#1a0d00}
+.odo .u{font:500 .7rem var(--f-mono);font-style:normal;color:#c8d4e0;align-self:flex-end;padding:0 4px 3px 2px}
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:15}
+.nav div{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:520px}
+.nav button{border:0;background:none;padding:9px 0 12px;font-size:.72rem;font-weight:600;color:var(--muted);cursor:pointer;display:grid;justify-items:center;gap:2px}
+.nav button.on{color:var(--accent)}
+.nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.days{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.track{position:relative;height:34px;background:var(--surface);border:1px solid var(--line);border-radius:7px;background-image:repeating-linear-gradient(90deg,transparent 0 calc(100%/14 - 1px),var(--line) calc(100%/14 - 1px) calc(100%/14))}
+.blk{position:absolute;top:2px;bottom:2px;border-radius:5px;background:var(--accent);color:var(--accent-ink);font-size:.62rem;font-weight:600;padding:2px 4px;overflow:hidden;white-space:nowrap;line-height:1.15}
+.blk.me{background:var(--ok);color:#fff}.blk.sp{background:var(--sp);color:#fff}
+.blk.blocked{background:repeating-linear-gradient(45deg,var(--line) 0 5px,var(--surface) 5px 10px);color:var(--muted)}
+.scale{display:flex;justify-content:space-between;font:500 .6rem var(--f-mono);color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th{text-align:left;font:500 .64rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.hl td{background:var(--warnbg)}
+tr.off td{opacity:.5;text-decoration:line-through}
+.scroll{overflow-x:auto}
+.atabs{display:flex;gap:6px;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.cols{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:12px;align-items:start}
+@media(max-width:820px){.cols{grid-template-columns:1fr}}
+.wkwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px;padding:0 2px 4px}
+.wk{display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:6px;min-width:860px}
+.wkd{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px;display:grid;gap:5px;align-content:start;min-height:120px}
+.wkd.hoy{border-color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
+.wkh{font-weight:600;font-size:.8rem;text-transform:capitalize;display:flex;justify-content:space-between;align-items:baseline;background:none;border:0;padding:2px 2px 4px;color:var(--ink);cursor:pointer;font-family:inherit;text-align:left}
+.wkh span{text-transform:none;font-weight:400;font-size:.7rem;color:var(--muted)}
+.wkr{border:1px solid var(--line);border-left:4px solid var(--pc,var(--accent));border-radius:6px;padding:4px 6px;font-size:.72rem;line-height:1.3;background:var(--bg)}
+.wkr b{font-family:var(--f-mono,monospace);font-size:.72rem}
+.wkr .m{display:inline-block;font-weight:600;color:var(--pc,var(--accent))}
+.wkr.me{background:var(--okbg)}.wkr.sp{background:var(--spbg)}
+.wkr.blocked{background:repeating-linear-gradient(45deg,var(--line) 0 5px,var(--surface) 5px 10px);color:var(--muted)}
+.saludo{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.saludo>div:first-child{min-width:0}
+.saludo h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk{position:relative;background:#5d636b;border:2px solid #1c1f23;border-radius:9px;padding:5px 12px;display:grid;gap:3px;flex:none}
+.rk div{display:flex;align-items:center;justify-content:space-between;gap:7px}
+.rk i{font:700 14px var(--f-disp);color:#f1f3f5;letter-spacing:.08em;font-style:normal}
+.rk b{font:19px 'Share Tech Mono',ui-monospace,monospace;color:#39c8ff;font-weight:400;background:#081118;border-radius:4px;padding:0 6px;line-height:1.25}
+.rk .sc{position:absolute;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#b9c0c7,#4a5058 72%);box-shadow:inset 0 0 0 1px #15181b}
+.rk .sc:nth-of-type(1){left:3px;top:3px}.rk .sc:nth-of-type(2){right:3px;top:3px}.rk .sc:nth-of-type(3){left:3px;bottom:3px}.rk .sc:nth-of-type(4){right:3px;bottom:3px}
+.parte{display:flex;gap:8px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
+.parte button{flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--line);background:transparent;color:var(--muted);font:600 .9rem var(--f-body,inherit);cursor:pointer}
+.parte button.on{background:var(--soft);border-color:var(--accent);color:var(--accent);cursor:default}
+.acceso{border:1.5px solid var(--accent);border-radius:12px;padding:10px 12px;background:var(--soft)}
+.hecha{display:block;font-size:.68rem;color:var(--muted);font-style:italic;font-weight:400}
+.rgt td{vertical-align:top}
+.wkv{font-size:.7rem;color:var(--muted);padding:2px}
+@media(max-width:700px){.wk{grid-template-columns:1fr;min-width:0}.wkd{min-height:0;grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}.wkd .wkh{grid-column:1/-1}.wkd .wkv{grid-column:1/-1}}
+.line{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.line:last-child{border:0}
+.modal{position:fixed;inset:0;background:rgba(5,12,20,.55);z-index:50;display:grid;place-items:center;padding:14px}
+.modal>div{background:var(--surface);border-radius:14px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:16px;display:grid;gap:10px}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--panel);color:#fff;padding:10px 16px;border-radius:10px;font-size:.86rem;z-index:60;max-width:90vw;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.users{display:grid;gap:8px}
+.users button{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer}
+.users button:hover{border-color:var(--accent)}
+.logo-top{width:30px;height:30px;filter:brightness(0) invert(1);vertical-align:middle;margin-right:8px}
+.logo-big{width:150px;height:150px;margin:0 auto}
+@media (min-width:99999px){.logo-big{filter:brightness(0) invert(1)}}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.pick{border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:0;overflow:hidden;cursor:pointer;text-align:center;display:grid}
+.pick img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--bg)}
+.pick span{padding:7px 6px 9px;display:grid;gap:1px}
+.pick b{font:700 1.15rem var(--f-disp)}
+.pick small{font-size:.74rem;color:var(--muted)}
+.pick.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--soft)}
+.pick.on b{color:var(--accent)}
+.pick:disabled{cursor:default;opacity:.6}
+.pick i{font-style:normal;font-size:.66rem;font-weight:600;margin-top:3px}
+textarea{min-height:70px}
+
+.logo-top{width:30px;height:30px;filter:brightness(0) invert(1);vertical-align:middle;margin-right:8px}
+.parte{display:flex;gap:8px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
+.parte button{flex:1;padding:8px;border-radius:10px;border:1.5px solid var(--line);background:transparent;color:var(--muted);font:600 .9rem var(--f-body,inherit)}
+.parte button.on{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+
+
+
+
+.nav.sn{position:static}
+.line{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:.86rem;align-items:center}
+.line:last-child{border-bottom:0}
+.ph{display:flex;align-items:center;gap:8px;margin:2px 0 6px}
+.ph .n{font:700 .8rem var(--f-mono);background:var(--panel);color:#fff;border-radius:6px;padding:1px 7px}
+.grade{display:flex;gap:4px}
+.grade button{width:34px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:.85rem}
+.grade button.g1{background:var(--badbg);color:var(--bad);border-color:var(--bad)}
+.grade button.g2{background:var(--warnbg);color:var(--warn);border-color:var(--warn)}
+.grade button.g3{background:var(--okbg);color:var(--ok);border-color:var(--ok)}
+.grade button.g4{background:var(--ok);color:#fff;border-color:var(--ok)}
+.ex{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.req{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:.85rem}
+.req i{font-style:normal;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:.7rem;font-weight:700;flex:none}
+.req i.y{background:var(--okbg);color:var(--ok)}.req i.n{background:var(--line);color:var(--muted)}
+.stu{display:grid;gap:4px;padding:10px 0;border-bottom:1px solid var(--line)}
+.stu:last-child{border-bottom:0}
+.av{width:34px;height:34px;border-radius:50%;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:.8rem;flex:none}
+.quote{border-left:3px solid var(--accent);padding:4px 10px;font-size:.86rem;background:var(--bg);border-radius:0 8px 8px 0}
+.mini3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+.mini3 div{background:var(--bg);border-radius:9px;padding:7px 4px}
+.mini3 b{display:block;font:700 1.35rem/1.1 var(--f-disp)}
+.tag{font:500 .62rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--sp);border-radius:4px;padding:1px 6px}
+
+.esc-top{background:#123a2a}
+.badge-al{font:600 .62rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;background:#2fbf71;color:#06281a;border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:2px}
+.acc{display:grid;gap:8px}
+.acc .opt{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--surface)}
+.acc .opt.on{border-color:var(--accent);background:var(--soft)}
+.acc .box{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line);flex:none;display:grid;place-items:center;font-size:.8rem;font-weight:700;color:#fff;margin-top:1px}
+.acc .on .box{background:var(--accent);border-color:var(--accent)}
+.acc b{display:block;font-size:.9rem}
+.flow{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center;font-size:.72rem}
+.flow div{border-radius:9px;padding:8px 4px;background:var(--bg)}
+.flow div.on{background:var(--okbg);color:var(--ok);font-weight:600}
+.overlay{position:absolute;inset:0;background:rgba(13,34,54,.45)}
+.modal2{position:relative;margin:70px 14px 20px;background:var(--surface);border-radius:14px;padding:16px;display:grid;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+
+.tl{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:.66rem;text-align:center}
+.tl div{background:var(--bg);border-radius:8px;padding:6px 2px;line-height:1.25}
+.tl b{display:block;font:700 1.05rem var(--f-disp)}
+.typ{display:inline-block;white-space:nowrap;font:600 .62rem var(--f-mono);text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:4px}
+.typ.dm{background:var(--soft);color:var(--accent)}.typ.so{background:var(--okbg);color:var(--ok)}.typ.ex{background:var(--spbg);color:var(--sp)}.typ.in{background:#ece4fb;color:#6a3fc4}
+.fl{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:.84rem}
+.fl:last-child{border-bottom:0}
+.fl .d{font:600 .78rem var(--f-mono);color:var(--muted);text-align:center;line-height:1.2}
+.arrow{font:700 1.4rem var(--f-disp);text-align:center;color:var(--ok)}
+
+.tabs2{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs2 button{border:0;background:none;padding:8px 10px;font-weight:600;font-size:.85rem;color:var(--muted);border-bottom:2.5px solid transparent}
+.tabs2 button.on{color:var(--accent);border-color:var(--accent)}
+.mk{display:flex;gap:4px}.mk button{border:1px solid var(--line);background:var(--surface);border-radius:7px;font-size:.7rem;padding:3px 7px;font-weight:600;color:var(--muted)}
+.mk button.ok{background:var(--okbg);border-color:var(--ok);color:var(--ok)}.mk button.pr{background:var(--warnbg);border-color:var(--warn);color:var(--warn)}
+.who{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;border-radius:99px;padding:2px 8px;background:#ece4fb;color:#6a3fc4}
+.lock{font-size:.75rem;color:var(--muted);display:flex;gap:6px;align-items:center}
+
+.demo .pill.dm{color:var(--warn);border-color:var(--warn);padding:2px 10px}
+.usr{display:flex;gap:10px;align-items:center;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:10px 2px;cursor:pointer;font:inherit;color:inherit}
+.usr:first-of-type{border-top:0}
+.usr b{display:block}
+.fl{width:100%;background:none;border:0;border-bottom:1px solid var(--line);font:inherit;color:inherit;text-align:left;cursor:pointer}
+button.fl:hover,button.stu:hover{background:var(--bg)}
+.stu{width:100%;background:none;border:0;border-bottom:1px solid var(--line);font:inherit;color:inherit;cursor:pointer;display:grid;gap:4px;padding:10px 0}
+.stu:last-child{border-bottom:0}
+button.card.nt{width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;display:block;border-color:var(--accent)}
+.nav button{position:relative}
+.mk button{white-space:nowrap}
+.top{flex-wrap:nowrap}.top b{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saludo .btn{flex:none}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+.top .r{flex-wrap:nowrap}
+.wrap.wide td{white-space:nowrap}
+@media(max-width:420px){.hs{display:none}}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 14px;margin-top:4px}
+.dato{display:grid;gap:1px;padding:6px 0;border-bottom:1px solid var(--line);min-width:0}
+.dato b{font-weight:600;overflow-wrap:anywhere}
+.dato input{min-height:32px;padding:4px 8px}
+.tabs2{overflow-x:auto;scrollbar-width:none}.tabs2 button{white-space:nowrap}
+.plan{display:grid;gap:8px}
+.pday{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px;display:grid;gap:6px;align-content:start}
+.pday.hoy{border-color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
+.pday.vacio{opacity:.75}
+.ph2{display:flex;gap:6px;align-items:baseline;text-transform:capitalize;font-size:.85rem}.ph2 .sm{margin-left:auto;text-transform:none}
+.pcl{text-align:left;border:1px solid var(--line);border-left:4px solid var(--pc);border-radius:7px;padding:6px 8px;background:var(--bg);font:inherit;font-size:.78rem;line-height:1.35;color:inherit;cursor:pointer;width:100%}
+.pcl .m{font-weight:600;color:var(--pc);white-space:nowrap}
+@media(min-width:900px){.plan{grid-template-columns:repeat(7,minmax(0,1fr))}.pday{min-height:180px}}
+.wrap>*{min-width:0}
+.fhead{flex-wrap:wrap}
+
+body[data-tema=verde]{--accent:#1b7a4a;--accent-ink:#fff;--soft:#dff0e5;--panel:#103a28;--bg:#ecf3ee;--line:#cddfd3;--muted:#4f6a5b;--ink:#0f2a1e}
+body[data-tema=arena]{--accent:#9a6526;--accent-ink:#fff;--soft:#f3e6d0;--panel:#4a3820;--bg:#f6f0e5;--line:#e3d4bb;--muted:#6f6047;--ink:#2e2414}
+body[data-tema]{background:var(--bg)}
+.temas{white-space:nowrap}.temas .pill.on{background:var(--warn);color:#fff}
+.sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:0}.sw-azul{background:#1769c8}.sw-verde{background:#1b7a4a}.sw-arena{background:#c79a55}
+.nb{position:absolute;top:4px;left:calc(50% + 6px);background:var(--bad);color:#fff;font-style:normal;font-size:.6rem;border-radius:99px;padding:0 5px;line-height:1.5}
+.atabs.chips button:disabled{opacity:.45;cursor:default}
+.opt{width:100%;font:inherit;color:inherit}
+.modal .card{box-shadow:none}
+.top b{display:flex;align-items:center}
+.esc-top{background:#123a2a}
+@media(min-width:900px){.wrap.wide .kpis{grid-template-columns:repeat(4,1fr)}}
+
+.cargando{margin:40vh auto 0;text-align:center;color:var(--muted);padding:0 20px}
+.logo-top{width:30px;height:30px;border-radius:7px;vertical-align:middle;margin-right:8px;filter:none}
+</style></head><body data-tema="verde"><div id="app"></div><script>
+(function(){
+'use strict';
+/* =====================================================================
+   Prototipo del apartado ESCUELA · Aeroclub Igualada-Òdena-Anoia
+   Todo funciona en este navegador con datos de ejemplo.
+   ===================================================================== */
+const KEY='aeroclub_escuela_proto_v2';
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const addDays=(s,n)=>{const d=new Date(s+'T12:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const diasEntre=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const fCorta=s=>{const d=new Date(s+'T12:00');return d.getDate()+' '+MESES[d.getMonth()].slice(0,3)};
+const fLarga=s=>{const d=new Date(s+'T12:00');return DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()]};
+const fNum=s=>s?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4):'';
+const hm=m=>{m=Math.round(m||0);const s=m<0?'−':'';m=Math.abs(m);return s+Math.floor(m/60)+':'+pad(m%60)};
+const hmTxt=m=>{m=Math.round(m||0);const s=m<0?'−':'';m=Math.abs(m);const h=Math.floor(m/60),r=m%60;return s+(h?h+' h'+(r?' '+pad(r)+' min':''):r+' min')};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const horoTxt=(min,av)=>{if(min==null)return '';if(av&&av.tipo_horometro==='horas_minutos')return Math.floor(min/60)+','+pad(min%60);const h=Math.floor(min/60),d=Math.round((min%60)/6);return d===10?(h+1)+',0':h+','+d};
+const parseHoro=(t,av)=>{t=String(t||'').trim().replace('.',',');if(av&&av.tipo_horometro==='horas_minutos'){const m=t.match(/^(\d{1,5}),(\d{1,2})$/);if(!m||+m[2]>59)return null;return +m[1]*60+(+m[2])}const m=t.match(/^(\d{1,5})(?:,(\d))?$/);if(!m)return null;return +m[1]*60+(m[2]?+m[2]*6:0)};
+const ini=n=>n.split(' ').filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+const nombre1=n=>n.split(' ')[0];
+
+/* ---------- programa de formación (ejemplo ULM MAF, editable más adelante) ---------- */
+const PROGRAMA=[
+ {fase:1,titulo:'Doble mando',lecciones:[
+  [1,'Familiarización y prevuelo',['Inspección prevuelo','Puesta en marcha y rodaje','Uso de la radio']],
+  [2,'Efectos de los mandos',['Profundidad','Alabeo','Dirección','Potencia y compensación']],
+  [3,'Recto y nivelado',['Actitud','Compensación','Mantener rumbo y altitud']],
+  [4,'Ascensos y descensos',['Ascenso a velocidad de mejor régimen','Descenso con y sin motor','Nivelar a una altitud']],
+  [5,'Virajes',['Virajes medios','Virajes escarpados','Coordinación']],
+  [6,'Vuelo lento y pérdidas',['Vuelo lento','Pérdida y recuperación','Pérdida en viraje']],
+  [7,'Despegue y circuito',['Despegue','Circuito de tráfico','Comunicaciones']],
+  [8,'Aproximación y aterrizaje',['Aproximación estabilizada','Recogida y toma','Motor y al aire']],
+  [9,'Emergencias',['Fallo de motor en despegue','Elección de campo','Planeo y configuración','Toma sin motor']],
+  [10,'Viento cruzado',['Despegue con viento cruzado','Corrección en final','Toma con viento cruzado']]]},
+ {fase:2,titulo:'Suelta',lecciones:[
+  [11,'Revisión antes de la suelta',['Circuitos completos','Emergencias en circuito','Criterio y seguridad']],
+  [12,'Primera suelta',['Revisión prevuelo','Despegue','Circuito','Aterrizaje']],
+  [13,'Circuitos solo',['Circuitos','Tomas y despegues','Gestión del tráfico']]]},
+ {fase:3,titulo:'Navegación',lecciones:[
+  [14,'Preparación de la navegación',['Carta y ruta','Meteorología','Combustible y peso']],
+  [15,'Navegación con instructor',['Seguimiento de ruta','Puntos de notificación','Desvío a alternativo']],
+  [16,'Navegación solo supervisada',['Planificación','Seguimiento de ruta','Llegada y toma']]]},
+ {fase:4,titulo:'Preparación del examen',lecciones:[
+  [17,'Repaso general y pre-examen',['Maniobras','Emergencias','Navegación','Toma de decisiones']]]}];
+const LECCIONES=PROGRAMA.flatMap(f=>f.lecciones.map(([n,t,ej])=>({n,t,ej,fase:f.fase})));
+const PRACTICA={n:0,t:'Vuelo de práctica (sin lección)',ej:[],fase:0};
+const LEC=n=>+n===0?PRACTICA:(LECCIONES.find(l=>l.n===+n)||{n,t:'Lección '+n,ej:['Ejecución'],fase:1});
+const lecTxt=n=>+n===0?'Vuelo de práctica':'L'+n+' '+LEC(n).t;
+const TEORICO=['Legislación aérea','Meteorología','Navegación','Principios de vuelo','Conocimiento de la aeronave','Factores humanos','Procedimientos operacionales'];
+const TIPOS={dm:'Doble mando',solo:'Solo supervisado',examen:'Examen'};
+const GRADOS={1:'A repetir',2:'Mejorable',3:'Bien',4:'Dominado'};
+
+function saldoDe(db,al){return db.paquetes.filter(p=>p.alumno===al).reduce((s,p)=>s+p.min,0)+db.ajustes.filter(a=>a.alumno===al).reduce((s,a)=>s+a.min,0)-db.vuelos.filter(v=>v.alumno===al).reduce((s,v)=>s+v.min,0)}
+
+/* ---------- datos: nube del club (Firebase) ---------- */
+const FIREBASE_CONFIG={apiKey:"AIzaSyDk3br7XYabu5-SbPgq1IN77vVg-Ji7luo",authDomain:"reservas-aeroclub.firebaseapp.com",projectId:"reservas-aeroclub",storageBucket:"reservas-aeroclub.firebasestorage.app",messagingSenderId:"240046395578",appId:"1:240046395578:web:7f5382ddf1501635683283"},FB_VERSION='10.12.2';
+const nid=()=>Date.now()*1000+Math.floor(Math.random()*1000);
+let API=null,CUENTA=null,YO=null,ES_PRINCIPAL=false,ES_ALUMNO=false,LISTO=false;
+const RAW={},PEND=new Set();let UNSUB=[];let SNAP={v:new Map(),a:new Map(),u:new Map()};
+const raw=c=>RAW[c]||(RAW[c]=new Map());
+function canon(o){if(Array.isArray(o))return o.map(canon);if(o&&typeof o==='object'){const r={};Object.keys(o).sort().forEach(k=>{if(o[k]!==undefined)r[k]=canon(o[k])});return r}return o}
+const ser=o=>JSON.stringify(canon(o));
+let DB={usuarios:[],aviones:[],progreso:{},teorico:{},paquetes:[],ajustes:[],vuelos:[],clases:[],comentarios:[]};
+const TEMA='verde';
+const S={user:null,view:'inicio',parte:'escuela',sel:null,tab:'Progreso',f:null,modal:null,toast:'',vsel:null,ftab:'Vuelo',filtro:'mios'};
+const horaMas=(h,m)=>{if(!/^\d\d:\d\d$/.test(h||''))return '';const t=(+h.slice(0,2)*60+ +h.slice(3)+m+1440)%1440;return pad(Math.floor(t/60))+':'+pad(t%60)};
+const ahoraTxt=()=>{const d=new Date();return today()+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00'};
+function rebuild(){
+  const al=raw('escuela_alumnos');
+  DB.usuarios=[...raw('usuarios').values()].map(u=>{const a=al.get(String(u.id));
+    const r={id:u.id,nombre:u.nombre||'',email:u.email||'',instructor:!!u.instructor,activo:u.activo!==false,rol:(u.id===YO&&ES_PRINCIPAL)?'principal':a?'alumno':(u.rol==='admin'?'admin':'socio')};
+    if(a){const x=JSON.parse(JSON.stringify(a));x.instructor=a.tutor;delete x.tutor;delete x.progreso;delete x.teorico;delete x.id;x.estado=x.estado||'formacion';r.al=x}
+    return r});
+  DB.progreso={};DB.teorico={};al.forEach((a,id)=>{DB.progreso[+id]=JSON.parse(JSON.stringify(a.progreso||{}));DB.teorico[+id]=JSON.parse(JSON.stringify(a.teorico||{}))});
+  DB.aviones=[...raw('aviones').values()].filter(a=>a.activo!==false).map(a=>({id:a.id,mat:String(a.matricula||'').toUpperCase(),modelo:a.modelo||'',tipo_horometro:a.tipo_horometro||'decimas',horo:a.horo_actual!=null?a.horo_actual:(a.horometro_inicial_min||0)})).sort((x,y)=>x.mat.localeCompare(y.mat));
+  const cp=o=>JSON.parse(JSON.stringify(o));
+  DB.paquetes=[...raw('escuela_paquetes').values()].map(cp);
+  DB.ajustes=[...raw('escuela_ajustes').values()].map(cp);
+  DB.comentarios=[...raw('escuela_comentarios').values()].map(cp);
+  DB.vuelos=[...raw('vuelos').values()].filter(v=>v.tipo==='escuela'&&v.estado!=='anulado').map(v=>({id:v.id,alumno:v.piloto_id,instructor:v.esc_instructor||v.safety_pilot_id||null,examinador:v.esc_examinador||'',avion:v.avion_id,tipo:v.esc_modo||'dm',leccion:v.esc_leccion||0,fecha:v.fecha,hora:v.hora_salida||'',salida:v.aerodromo_salida||'',destino:v.aerodromo_destino||'',horoSal:v.horometro_salida_min,horoLle:v.horometro_llegada_min,min:(v.horometro_llegada_min||0)-(v.horometro_salida_min||0),tomas:v.tomas||0,
+    nota:v.nota_esc?cp(v.nota_esc):(v.esc_modo?null:{g:[],res:'ok',com:'',prox:'',por:null,fecha:v.fecha})}));
+  DB.clases=[...raw('reservas').values()].filter(r=>r.escuela&&r.estado==='activa'&&r.inicio).map(r=>({id:r.id,alumno:r.alumno_id,instructor:r.usuario_id,avion:r.avion_id,leccion:r.leccion||0,fecha:r.inicio.slice(0,10),desde:r.inicio.slice(11,16),hasta:r.fin.slice(11,16)}));
+  SNAP={v:new Map(DB.vuelos.map(v=>[v.id,ser({n:v.nota,l:v.horoLle})])),a:new Map(DB.aviones.map(a=>[a.id,a.horo])),u:new Map(DB.usuarios.map(u=>[u.id,ser({n:u.nombre,e:u.email,a:u.activo,i:u.instructor})]))};
+}
+function docsEsc(){
+  const tutor=al=>{const u=U(al);return u&&u.al?u.al.instructor:null};
+  const out={escuela_alumnos:new Map(),escuela_paquetes:new Map(),escuela_ajustes:new Map(),escuela_comentarios:new Map()};
+  DB.usuarios.filter(u=>u.al).forEach(u=>{const d=JSON.parse(JSON.stringify(u.al));d.id=u.id;d.tutor=u.al.instructor;delete d.instructor;d.progreso=DB.progreso[u.id]||{};d.teorico=DB.teorico[u.id]||{};
+    const o=raw('escuela_alumnos').get(String(u.id));if(o){if(!('progreso' in o)&&!Object.keys(d.progreso).length)delete d.progreso;if(!('teorico' in o)&&!Object.keys(d.teorico).length)delete d.teorico}
+    out.escuela_alumnos.set(String(u.id),d)});
+  DB.paquetes.forEach(p=>out.escuela_paquetes.set(String(p.id),{id:p.id,alumno:p.alumno,tutor:tutor(p.alumno),min:p.min,fecha:p.fecha,por:p.por}));
+  DB.ajustes.forEach(a=>out.escuela_ajustes.set(String(a.id),{id:a.id,alumno:a.alumno,tutor:tutor(a.alumno),min:a.min,motivo:a.motivo,fecha:a.fecha,por:a.por}));
+  DB.comentarios.forEach(c=>out.escuela_comentarios.set(String(c.id),{id:c.id,alumno:c.alumno,tutor:tutor(c.alumno),por:c.por,fecha:c.fecha,txt:c.txt}));
+  return out}
+function opsEsc(){
+  const ops=[],tutor=al=>{const u=U(al);return u&&u.al?u.al.instructor:null};
+  Object.entries(docsEsc()).forEach(([c,m])=>{const old=raw(c);
+    m.forEach((d,id)=>{const o=old.get(id);if(!o||ser(o)!==ser(d))ops.push({op:'set',col:c,id,data:d})});
+    old.forEach((o,id)=>{if(!m.has(id))ops.push({op:'delete',col:c,id})})});
+  // vuelos de escuela = vuelos del club (comparten horómetro con las reservas)
+  DB.vuelos.forEach(v=>{const id=String(v.id),o=raw('vuelos').get(id),t=tutor(v.alumno);
+    if(!o){ops.push({op:'set',col:'vuelos',id,data:{id:v.id,avion_id:v.avion,piloto_id:v.alumno,safety_pilot_id:v.tipo==='dm'?v.instructor:null,tipo:'escuela',fecha:v.fecha,aerodromo_salida:v.salida,aerodromo_destino:v.destino,hora_salida:v.hora,hora_llegada:horaMas(v.hora,v.min),
+      horometro_salida_min:v.horoSal,horometro_llegada_min:v.horoLle,acompanante:v.tipo!=='solo',tomas:+v.tomas||0,descuenta_bono:false,aprobacion:null,salida_editada:false,nota_piloto:'',estado:'ok',reserva_id:v.clase||null,creado_en:ahoraTxt(),
+      esc_modo:v.tipo,esc_leccion:+v.leccion||0,esc_leccion_txt:+v.leccion?LEC(v.leccion).t:'Vuelo de práctica',esc_instructor:v.instructor,esc_examinador:v.examinador||'',esc_tutor:t,nota_esc:null}});return}
+    const d=Object.assign({},o);let ch=false;
+    if(SNAP.v.get(v.id)!==ser({n:v.nota,l:v.horoLle})){d.nota_esc=v.nota||null;d.horometro_llegada_min=v.horoLle;d.hora_llegada=horaMas(v.hora,v.min);ch=true}
+    if(esPrincipal()&&o.esc_modo&&o.esc_tutor!==t){d.esc_tutor=t;ch=true}
+    if(ch)ops.push({op:'set',col:'vuelos',id,data:d})});
+  DB.aviones.forEach(a=>{if(SNAP.a.get(a.id)!==a.horo){const o=raw('aviones').get(String(a.id));if(o)ops.push({op:'set',col:'aviones',id:String(a.id),data:Object.assign({},o,{horo_actual:a.horo})})}});
+  // clases = reservas del club marcadas como escuela
+  const vivas=new Set(DB.clases.map(c=>String(c.id)));
+  DB.clases.forEach(c=>{const id=String(c.id);if(raw('reservas').get(id))return;
+    ops.push({op:'set',col:'reservas',id,data:{id:c.id,avion_id:+c.avion,usuario_id:c.instructor,safety_pilot_id:null,sp_estado:null,inicio:c.fecha+'T'+c.desde,fin:c.fecha+'T'+c.hasta,estado:'activa',creado_en:ahoraTxt().slice(0,16),escuela:true,alumno_id:c.alumno,leccion:+c.leccion||0}})});
+  raw('reservas').forEach((r,id)=>{if(r.escuela&&r.estado==='activa'&&!vivas.has(id)&&(esPrincipal()||r.usuario_id===YO))ops.push({op:'set',col:'reservas',id,data:Object.assign({},r,{estado:'cancelada'})})});
+  // usuarios: altas, bajas y cambios de los alumnos; instructores (cuenta principal)
+  const vivosU=new Set(DB.usuarios.map(u=>String(u.id)));
+  DB.usuarios.forEach(u=>{const id=String(u.id),o=raw('usuarios').get(id);
+    if(!o){if(u.al)ops.push({op:'set',col:'usuarios',id,data:{id:u.id,nombre:u.nombre,email:u.email,rol:'socio',sp:false,idioma:'es',activo:u.activo!==false,reservas:false,alumno:true}});return}
+    if(SNAP.u.get(u.id)!==ser({n:u.nombre,e:u.email,a:u.activo,i:u.instructor})){const d=Object.assign({},o,{nombre:u.nombre,email:u.email,activo:u.activo!==false});if(u.instructor)d.instructor=true;else delete d.instructor;ops.push({op:'set',col:'usuarios',id,data:d})}});
+  raw('usuarios').forEach((o,id)=>{if(o.alumno&&!vivosU.has(id))ops.push({op:'delete',col:'usuarios',id})});
+  return ops}
+function save(extra){
+  if(!API||!LISTO)return Promise.resolve({ok:false});
+  const ops=opsEsc().concat(extra||[]);if(!ops.length)return Promise.resolve({ok:true});
+  const prev=ops.map(o=>[o.col,o.id,raw(o.col).has(o.id),raw(o.col).get(o.id)]);
+  ops.forEach(o=>{o.op==='delete'?raw(o.col).delete(o.id):raw(o.col).set(o.id,JSON.parse(JSON.stringify(o.data)))});rebuild();
+  return API.commit(ops).then(()=>({ok:true}),e=>{console.error(e);prev.forEach(([c,id,h,v])=>{h?raw(c).set(id,v):raw(c).delete(id)});rebuild();
+    const p=e&&(e.code==='permission-denied'||/permission/i.test(e.message||''));toast(p?'No tienes permiso para hacer ese cambio.':'No se ha podido guardar. Revisa la conexión e inténtalo de nuevo.');return {ok:false}})}
+let pintarPend=false;
+function pintar(){if(!LISTO)return;const ae=document.activeElement;if(ae&&ae.closest&&ae.closest('#app')&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)){pintarPend=true;return}render()}
+document.addEventListener('focusout',()=>{if(pintarPend){pintarPend=false;setTimeout(()=>{const ae=document.activeElement;if(!(ae&&ae.closest&&ae.closest('#app')&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))render();else pintarPend=true},0)}});
+function alCambiar(){if(PEND.size)return;LISTO=true;rebuild();if(!me()){document.getElementById('app').innerHTML='<p class="cargando">Tu ficha de la escuela todavía no está disponible. Habla con tu instructor.<br><br><a href="#" data-act="salir">Salir</a></p>';return}pintar()}
+function escuchar(esIns){
+  UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];
+  const L=(c,f)=>{PEND.add(c);UNSUB.push(API.listen(c,f,docs=>{const m=raw(c);m.clear();docs.forEach(d=>m.set(d.id,d.data));PEND.delete(c);alCambiar()},e=>{console.error(c,e);PEND.delete(c);alCambiar()}))};
+  ['usuarios','aviones','reservas','bloqueos'].forEach(c=>L(c,null));
+  const mio=ES_PRINCIPAL?null:ES_ALUMNO?{field:'alumno',value:YO}:{field:'tutor',value:YO};
+  L('escuela_alumnos',ES_PRINCIPAL?null:ES_ALUMNO?{docId:String(YO)}:{field:'tutor',value:YO});
+  ['escuela_paquetes','escuela_ajustes','escuela_comentarios'].forEach(c=>L(c,mio));
+  L('vuelos',ES_PRINCIPAL?{field:'tipo',value:'escuela'}:ES_ALUMNO?{field:'piloto_id',value:YO}:{field:'esc_tutor',value:YO});
+}
+async function crearApiFirebase(){
+  const b='https://www.gstatic.com/firebasejs/'+FB_VERSION+'/';
+  const [A_,Au,Fs]=await Promise.all([import(b+'firebase-app.js'),import(b+'firebase-auth.js'),import(b+'firebase-firestore.js')]);
+  const app=A_.initializeApp(FIREBASE_CONFIG),auth=Au.getAuth(app),db=Fs.getFirestore(app);auth.languageCode='es';
+  return {
+    onAuth:cb=>Au.onAuthStateChanged(auth,u=>cb(u?u.email:null)),
+    signOut:()=>Au.signOut(auth),
+    getDoc:async(c,id)=>{const s=await Fs.getDoc(Fs.doc(db,c,id));return s.exists()?s.data():null},
+    listen:(c,f,cb,err)=>{
+      if(f&&f.docId)return Fs.onSnapshot(Fs.doc(db,c,f.docId),s=>cb(s.exists()?[{id:s.id,data:s.data()}]:[]),err);
+      const ref=f?Fs.query(Fs.collection(db,c),Fs.where(f.field,'==',f.value)):Fs.collection(db,c);
+      return Fs.onSnapshot(ref,s=>cb(s.docs.map(d=>({id:d.id,data:d.data()}))),err)},
+    commit:async ops=>{for(let i=0;i<ops.length;i+=400){const w=Fs.writeBatch(db);ops.slice(i,i+400).forEach(o=>o.op==='delete'?w.delete(Fs.doc(db,o.col,o.id)):w.set(Fs.doc(db,o.col,o.id),o.data));await w.commit()}},
+    crearCuenta:async email=>{const sec=A_.initializeApp(FIREBASE_CONFIG,'alta'+Date.now()),sa=Au.getAuth(sec);let estado='creada';
+      try{await Au.createUserWithEmailAndPassword(sa,email,crypto.randomUUID()+'Aa1!')}catch(e){if(e.code==='auth/email-already-in-use')estado='existia';else throw e}
+      finally{try{await Au.signOut(sa)}catch(_){}try{await A_.deleteApp(sec)}catch(_){}}
+      await Au.sendPasswordResetEmail(auth,email);return estado}
+  }}
+async function arrancar(){
+  document.getElementById('app').innerHTML='<p class="cargando">Cargando la escuela…</p>';
+  try{API=window.__API_MOCK||await crearApiFirebase()}catch(e){document.getElementById('app').innerHTML='<p class="cargando">No se puede conectar. Revisa la conexión a internet y vuelve a abrir la app.</p>';return}
+  API.onAuth(async email=>{
+    if(!email){location.replace('index.html');return}
+    const em=email.toLowerCase();let c=null;try{c=await API.getDoc('cuentas',em)}catch(e){}
+    if(!c||c.activo===false){location.replace('index.html');return}
+    CUENTA=c;YO=c.usuario_id;S.user=YO;ES_ALUMNO=c.escuela==='alumno';
+    let cf=null;try{cf=await API.getDoc('config','app')}catch(e){}
+    ES_PRINCIPAL=!ES_ALUMNO&&c.rol==='admin'&&!!(cf&&cf.por&&String(cf.por).toLowerCase()===em);
+    let yo=null;try{yo=await API.getDoc('usuarios',String(YO))}catch(e){}
+    const esIns=!!(yo&&yo.instructor);
+    if(!ES_ALUMNO&&!esIns&&!ES_PRINCIPAL){try{localStorage.setItem('aeroclub_parte_'+em,'reservas')}catch(e){}location.replace('index.html');return}
+    if(!ES_ALUMNO)try{localStorage.setItem('aeroclub_parte_'+em,'escuela')}catch(e){}
+    escuchar(esIns)});
+}
+function irA(p){try{localStorage.setItem('aeroclub_parte_'+String(CUENTA&&CUENTA.email||'').toLowerCase(),p)}catch(e){}location.href=p==='logbook'?'logbook.html':'index.html'}
+/* ---------- consultas ---------- */
+const U=id=>DB.usuarios.find(u=>u.id===+id);
+const UN=id=>U(id)||{nombre:'—',email:''};
+const A=id=>DB.aviones.find(a=>a.id===+id)||{mat:'?',modelo:''};
+const me=()=>U(S.user);
+const esPrincipal=()=>me()&&me().rol==='principal';
+const esInstructor=()=>me()&&!!me().instructor;
+const alumnos=()=>DB.usuarios.filter(u=>u.rol==='alumno'&&u.al.estado==='formacion');
+const bajas=()=>DB.usuarios.filter(u=>u.rol==='alumno'&&u.al.estado==='baja');
+const instructores=()=>DB.usuarios.filter(u=>u.instructor&&u.activo!==false);
+const puedeGestionar=al=>esPrincipal()||(esInstructor()&&U(al)&&U(al).al&&U(al).al.instructor===S.user);
+const saldo=al=>saldoDe(DB,al);
+const vuelosDe=al=>DB.vuelos.filter(v=>v.alumno===al).sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)||b.id-a.id);
+const estadoLec=(al,n)=>(DB.progreso[al]||{})[n]||'';
+const logradas=al=>LECCIONES.filter(l=>estadoLec(al,l.n)==='ok').length;
+const pct=al=>Math.round(logradas(al)/LECCIONES.length*100);
+const faseActual=al=>{const l=LECCIONES.find(l=>estadoLec(al,l.n)!=='ok');return l?PROGRAMA.find(f=>f.fase===l.fase):PROGRAMA[PROGRAMA.length-1]};
+const proxLeccion=al=>LECCIONES.find(l=>estadoLec(al,l.n)!=='ok')||LECCIONES[LECCIONES.length-1];
+const ultimoVuelo=al=>{const v=vuelosDe(al)[0];return v?v.fecha:null};
+const totales=al=>{const vs=DB.vuelos.filter(v=>v.alumno===al);const s=t=>vs.filter(v=>v.tipo===t).reduce((x,v)=>x+v.min,0);return {dm:s('dm'),solo:s('solo'),examen:s('examen'),tomas:vs.reduce((x,v)=>x+(+v.tomas||0),0),n:vs.length,total:vs.reduce((x,v)=>x+v.min,0),nDm:vs.filter(v=>v.tipo==='dm').length,nSolo:vs.filter(v=>v.tipo==='solo').length,nEx:vs.filter(v=>v.tipo==='examen').length}};
+const tieneSuelta=(al,av)=>{const s=(U(al)&&U(al).al||{}).suelta;return !!(s&&(av==null||+s.avion===+av)&&s.desde<=today())};
+const pendientesDe=ins=>DB.vuelos.filter(v=>!v.nota&&v.tipo!=='examen'&&(esPrincipal()&&ins==null?true:(v.instructor===ins||(U(v.alumno)&&U(v.alumno).al&&U(v.alumno).al.instructor===ins&&!U(v.instructor)?.instructor)))&&U(v.alumno)&&U(v.alumno).al&&U(v.alumno).al.estado==='formacion');
+const estadoAlumno=al=>{const u=U(al),s=saldo(al),uv=ultimoVuelo(al),dd=uv?diasEntre(uv,today()):999;
+  if(DB.vuelos.some(v=>v.alumno===al&&v.tipo==='examen'))return ['sp','Examen hecho'];
+  if(s<=0)return ['bad','Sin horas'];if(!uv)return ['','Sin vuelos todavía'];if(dd>=21)return ['warn',dd+' días sin volar'];if(s<60)return ['warn','Pocas horas'];return ['ok','En ritmo']};
+const proxClase=al=>DB.clases.filter(c=>c.alumno===al&&c.fecha>=today()).sort((a,b)=>(a.fecha+a.desde).localeCompare(b.fecha+b.desde))[0];
+const ultimoComentario=al=>{const a=DB.vuelos.filter(v=>v.alumno===al&&v.nota&&v.nota.com).map(v=>({fecha:v.nota.fecha||v.fecha,txt:v.nota.com,por:v.nota.por,id:v.id}));const b=DB.comentarios.filter(c=>c.alumno===al).map(c=>({fecha:c.fecha,txt:c.txt,por:c.por}));return a.concat(b).sort((x,y)=>(y.fecha||'').localeCompare(x.fecha||''))[0]};
+
+/* ---------- interfaz común ---------- */
+const ICON={inicio:'<path d="M4 11l8-7 8 7v9H4z"/>',volar:'<path d="M14.639 10.258l4.83 -1.294a2 2 0 1 1 1.035 3.863l-14.489 3.883l-4.45 -5.02l2.897 -.776l2.45 1.414l2.897 -.776l-3.743 -6.244l2.898 -.777l5.675 5.727"/><path d="M3 21h18"/>',diario:'<path d="M5 4h11l3 3v13H5z"/><path d="M8 11h8M8 15h8"/>',formacion:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/>',horas:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',alumnos:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14c3 0 5 2 5 5"/>',notas:'<path d="M5 4h11l3 3v13H5z"/><path d="M9 12l2 2 4-4"/>',clases:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',ficha:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.5 16.5c.6-1.8 2-2.7 3.5-2.7s2.9.9 3.5 2.7M14.5 10h4M14.5 13.5h4"/>',planning:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><path d="M8 14h3M13 14h3M8 17h3"/>'};
+const nav=items=>`<nav class="nav"><div style="grid-template-columns:repeat(${items.length},1fr)">${items.map(([k,t,b])=>`<button class="${S.view===k?'on':''}" data-act="view" data-v="${k}"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${t}${b?`<i class="nb">${b}</i>`:''}</button>`).join('')}</div></nav>`;
+const chipEst=s=>({ok:'<span class="chip ok">Logrado</span>',pr:'<span class="chip warn">En curso</span>',rep:'<span class="chip bad">A repetir</span>'}[s]||'<span class="chip">Pendiente</span>');
+const typ=t=>`<span class="typ ${t==='dm'?'dm':t==='solo'?'so':'ex'}">${TIPOS[t]}</span>`;
+function demoBar(){return ''}
+function topBar(title,extra){const u=me();return `<div class="top"><b><img src="icon-192.png" class="logo-top" alt="">${title.replace('Aeroclub · ','<span class="hs">Aeroclub ·&nbsp;</span>')}</b><div class="r">${extra||''}<button class="pill" data-act="salir" title="${esc(u.nombre)}">${esc(nombre1(u.nombre))} · salir</button></div></div>`}
+const parteBar=()=>`<div class="parte">${[['logbook','Mi logbook'],...((CUENTA&&(CUENTA.rol==='admin'||CUENTA.reservas!==false))?[['reservas','Reservas']]:[]),['escuela','Escuela']].map(([k,t])=>`<button class="${S.parte===k?'on':''}" data-act="parte" data-v="${k}">${t}</button>`).join('')}</div>`;
+function toast(t){S.toast=t;render();clearTimeout(toast.t);toast.t=setTimeout(()=>{S.toast='';render()},3800)}
+
+/* ---------- entrada ---------- */
+function vLogin(){return '<p class="cargando">Cargando la escuela…</p>'}
+const rolTxt=u=>u.rol==='principal'?'Cuenta principal Aeroclub':u.rol==='admin'?'Administrador del club (no principal)':u.rol==='alumno'?(u.al.estado==='piloto'?'Piloto · licencia '+(u.al.licencia||''):'Alumno · instructor '+nombre1(UN(u.al.instructor).nombre)):(u.instructor?'Instructor':'Piloto del club (socio)');
+
+/* =====================================================================
+   ALUMNO
+   ===================================================================== */
+function vAlumno(){
+  const u=me(),al=u.id;
+  const items=[['inicio','Inicio'],['volar','Volar'],['diario','Diario'],['formacion','Formación'],['ficha','Mi ficha']];
+  let h=topBar('Aeroclub · Escuela <span class="badge-al">Alumno</span>');
+  h+=`<div class="wrap">`+({inicio:aInicio,volar:aVolar,diario:aDiario,formacion:aFormacion,horas:aHoras,ficha:al=>`<div class="row"><h2>Mi ficha</h2><span class="sm">${esc(U(al).al.matricula||'')}</span></div>`+fichaDatos(al,'alumno')}[S.view]||aInicio)(al)+`</div>`;
+  return h+nav(items);
+}
+function aInicio(al){
+  const u=U(al),s=saldo(al),c=proxClase(al),l=proxLeccion(al),uc=ultimoComentario(al),t=totales(al),f=faseActual(al);
+  let h=`<div class="saludo"><div><span class="lbl">${fLarga(today())}</span><h2>Hola, ${esc(nombre1(u.nombre))}</h2></div><span class="chip sp">Alumno piloto</span></div>`;
+  const av=[];const dm=diasEntre(today(),u.al.medico);
+  if(dm<0)av.push(['bad','Tu certificado médico está caducado. No puedes volar hasta renovarlo.']);else if(dm<=60)av.push(['warn','Tu certificado médico caduca el '+fNum(u.al.medico)+'.']);
+  if(faltan(u).length)av.push(['warn','Te faltan datos en tu ficha: '+faltan(u).join(', ')+'.']);
+  if(s<=0)av.push(['bad','No te quedan horas de escuela. Habla con tu instructor para comprar un paquete.']);else if(s<60)av.push(['warn','Te quedan '+hmTxt(s)+' de escuela.']);
+  if(av.length)h+=av.map(([k,x])=>`<div class="msg ${k}">${k==='bad'?'⛔':'⚠'} ${esc(x)}</div>`).join('');
+  h+=c?`<div class="card" style="border-color:var(--accent)"><div class="row"><span class="lbl">Próxima clase</span><span class="chip">${c.fecha===today()?'Hoy':c.fecha===addDays(today(),1)?'Mañana':fCorta(c.fecha)}</span></div>
+   <h3 style="margin-top:6px">${fLarga(c.fecha).replace(/^./,x=>x.toUpperCase())} · ${c.desde}–${c.hasta}</h3><div class="sm">${A(c.avion).mat} · con <b style="color:var(--ink)">${esc(UN(c.instructor).nombre)}</b></div>
+   <div class="msg info" style="margin-top:8px"><b>${+c.leccion?'Lección '+c.leccion+' · '+esc(LEC(c.leccion).t):'Vuelo de práctica'}</b>${LEC(c.leccion).ej.length?'<br>Ejercicios: '+esc(LEC(c.leccion).ej.join(', '))+'.':''}</div>
+   <p class="sm" style="margin-top:6px">Si no puedes ir, avisa a tu instructor: él es quien reserva y cancela las clases.</p></div>`
+   :`<div class="card"><span class="lbl">Próxima clase</span><p class="sm" style="margin-top:4px">No tienes clases reservadas. Tu instructor te la reservará.</p></div>`;
+  h+=`<div class="card"><div class="row"><span class="lbl">Mis horas de escuela</span>${s<=0?'<span class="chip bad">Sin horas</span>':s<60?'<span class="chip warn">Quedan pocas</span>':'<span class="chip ok">Al día</span>'}</div>
+   <div class="row" style="align-items:end;margin-top:4px"><div class="big ${s<0?'neg':''}">${hmTxt(s)}</div><button class="btn sm ghost" data-act="view" data-v="horas">Ver paquetes</button></div></div>`;
+  h+=`<div class="card"><div class="row"><span class="lbl">Mi formación</span><span class="sm">Fase ${f.fase} de 4 · ${esc(f.titulo)}</span></div>
+   <div class="row" style="margin-top:4px"><span class="big">${pct(al)}<span style="font-size:1.2rem">%</span></span><span class="sm">${logradas(al)} de ${LECCIONES.length} lecciones</span></div><div class="pbar"><i style="width:${pct(al)}%"></i></div>
+   <div class="sm">Siguiente: <b style="color:var(--ink)">L${l.n} · ${esc(l.t)}</b>${tieneSuelta(al)?' · <span class="chip sp">Con suelta en '+A(u.al.suelta.avion).mat+'</span>':''}</div>
+   <div class="mini3" style="margin-top:10px"><div><span class="lbl">Doble mando</span><b>${hm(t.dm)}</b></div><div><span class="lbl">Solo</span><b>${hm(t.solo)}</b></div><div><span class="lbl">Tomas</span><b>${t.tomas}</b></div></div></div>`;
+  if(uc)h+=`<div class="card"><div class="row"><span class="lbl">Último comentario</span><span class="sm">${fCorta(uc.fecha)} · ${esc(nombre1(UN(uc.por).nombre))}</span></div><div class="quote" style="margin-top:6px">${esc(uc.txt)}</div></div>`;
+  return h;
+}
+function aVolar(al){
+  const u=U(al);
+  if(!S.f||S.f.kind!=='vuelo'||S.f.al!==al){const c=DB.clases.find(c=>c.alumno===al&&c.fecha===today());const l=c?c.leccion:proxLeccion(al).n;
+    S.f={kind:'vuelo',al,avion:c?c.avion:(u.al.suelta?u.al.suelta.avion:(DB.aviones[0]||{}).id),tipo:'dm',instructor:c?c.instructor:u.al.instructor,examinador:'',leccion:l,salida:'Igualada-Òdena',destino:'Igualada-Òdena',hora:'10:00',llegada:'',tomas:'1',clase:c?c.id:null}}
+  const f=S.f,a=A(f.avion);
+  const tipos=[['dm','Doble mando'],...(tieneSuelta(al,f.avion)?[['solo','Solo supervisado']]:[]),['examen','Examen']];
+  if(!tipos.some(x=>x[0]===f.tipo))f.tipo='dm';
+  const c=f.clase?DB.clases.find(x=>x.id===f.clase):null;
+  let h=`<div class="row"><h2>Anotar vuelo de escuela</h2><span class="chip">${a.mat}</span></div>`;
+  if(c)h+=`<div class="msg info">Clase de hoy reservada por <b>${esc(UN(c.instructor).nombre)}</b> · ${c.desde}–${c.hasta} · ${esc(lecTxt(c.leccion))}</div>`;
+  h+=`<div class="card" style="display:grid;gap:10px">
+   <div class="field"><label>Avión</label><div class="chips">${DB.aviones.map(x=>`<button class="${x.id===+f.avion?'on':''}" data-act="f" data-k="avion" data-v="${x.id}">${x.mat}</button>`).join('')}</div></div>
+   <div class="field"><label>Tipo de vuelo</label><div class="chips">${tipos.map(([k,t])=>`<button class="${f.tipo===k?'on':''}" data-act="f" data-k="tipo" data-v="${k}">${t}</button>`).join('')}</div>
+   <span class="sm">${tieneSuelta(al,f.avion)?'Tienes la suelta en este avión: los vuelos solos siempre con tu instructor en tierra.':'«Solo supervisado» aparecerá cuando tu instructor te dé la suelta en este avión.'}</span></div>
+   ${f.tipo==='examen'?`<div class="field"><label>Examinador</label><input data-f="examinador" value="${esc(f.examinador)}" placeholder="Nombre del examinador"></div>`:''}
+   <div class="two"><div class="field"><label>${f.tipo==='solo'?'Instructor en tierra':f.tipo==='examen'?'Instructor que te presenta':'Instructor'}</label><select data-f="instructor">${instructores().map(i=>`<option value="${i.id}" ${i.id===+f.instructor?'selected':''}>${esc(i.nombre)}</option>`).join('')}</select></div>
+   <div class="field"><label>Lección</label><select data-f="leccion"><option value="0" ${+f.leccion===0?'selected':''}>Vuelo de práctica (sin lección)</option>${LECCIONES.map(l=>`<option value="${l.n}" ${l.n===+f.leccion?'selected':''}>L${l.n} · ${esc(l.t)}</option>`).join('')}</select></div></div>
+   <div class="two"><div class="field"><label>Salida</label><input data-f="salida" value="${esc(f.salida)}"></div><div class="field"><label>Destino</label><input data-f="destino" value="${esc(f.destino)}"></div></div>
+   <div class="two"><div class="field"><label>Hora de salida</label><input type="time" data-f="hora" value="${f.hora}"></div><div class="field"><label>Tomas</label><input type="number" min="1" data-f="tomas" value="${esc(f.tomas)}"></div></div>
+   <div class="field"><label>Horómetro de salida</label><div>${odo(a.horo,a)}</div><span class="sm">Viene del último vuelo del ${a.mat}.</span></div>
+   <div class="field"><label>Horómetro de llegada</label><input data-f="llegada" inputmode="decimal" value="${esc(f.llegada)}" placeholder="ej. ${horoTxt(a.horo+(a.tipo_horometro==='horas_minutos'?50:54),a)}" style="font-family:var(--f-mono)"><span class="sm">${a.tipo_horometro==='horas_minutos'?'Horas, coma y minutos (0 a 59), como en el avión.':'Con coma y la décima, como en el avión.'}</span></div></div>
+   <div id="prev">${prevVuelo()}</div>
+   <button class="btn full" id="gv" data-act="guardar-vuelo" ${errVuelo().length?'disabled':''}>Guardar vuelo</button>`;
+  return h;
+}
+function odo(min,av){const h=String(Math.floor(min/60)).padStart(5,'0');if(av&&av.tipo_horometro==='horas_minutos'){const mm=pad(min%60);return '<span class="odo">'+h.split('').map(c=>'<span>'+c+'</span>').join('')+'<i class="u">h</i>'+mm.split('').map(c=>'<span class="t">'+c+'</span>').join('')+'<i class="u">min</i></span>'}const d=Math.round((min%60)/6);return '<span class="odo">'+h.split('').map(c=>'<span>'+c+'</span>').join('')+'<span class="t">'+d+'</span></span>'}
+function errVuelo(){const f=S.f,a=A(f.avion),e=[],ll=parseHoro(f.llegada,A(f.avion));
+  if(ll===null)e.push('Escribe el horómetro de llegada con su décima (ej. '+horoTxt(a.horo+(a.tipo_horometro==='horas_minutos'?50:54),a)+').');else if(ll<=a.horo)e.push('La llegada debe ser mayor que la salida ('+horoTxt(a.horo,a)+').');else if(ll-a.horo>6*60)e.push('Más de 6 h de vuelo: revisa la lectura.');
+  if(!(+f.tomas>=1))e.push('Indica el número de tomas.');if(f.tipo==='examen'&&!String(f.examinador).trim())e.push('Indica el examinador.');
+  if(U(f.al).al.medico<today())e.push('Tu certificado médico está caducado.');return e}
+function prevVuelo(){const f=S.f,a=A(f.avion),ll=parseHoro(f.llegada,A(f.avion)),e=errVuelo();let h='';
+  if(ll!==null&&ll>a.horo){const m=ll-a.horo,s=saldo(f.al);h+=`<div class="card" style="background:var(--soft);border-color:transparent"><div class="row"><span class="lbl">Tiempo de vuelo</span><b style="font:700 1.4rem var(--f-disp)">${hmTxt(m)}</b></div>
+   <div class="row" style="margin-top:4px"><span class="sm">Mis horas de escuela</span><span>${hmTxt(s)} → <b class="${s-m<0?'neg':''}">${hmTxt(s-m)}</b></span></div></div>`;
+   if(s-m<0)h+=`<div class="msg warn">Te quedarás en negativo: se descontará del próximo paquete.</div>`;
+   h+=f.tipo==='dm'?`<div class="msg ok">✓ ${esc(UN(f.instructor).nombre)} recibirá este vuelo en su logbook como <b>instructor</b> y te pondrá la nota de la clase.</div>`:f.tipo==='solo'?`<div class="msg ok">✓ Queda registrado con ${esc(UN(f.instructor).nombre)} como instructor en tierra, que te pondrá la nota.</div>`:''}
+  if(e.length&&String(f.llegada).trim())h+=`<div class="msg info">${e.map(esc).join('<br>')}</div>`;return h}
+function aDiario(al){
+  if(S.vsel)return detalleVuelo(S.vsel,false);
+  const t=totales(al),vs=vuelosDe(al);
+  return `<div class="row"><h2>Mi diario de alumno</h2><span class="sm">${t.n} vuelos</span></div>
+  <div class="tl"><div>Doble mando<b>${hm(t.dm)}</b></div><div>Solo superv.<b>${hm(t.solo)}</b></div><div>Examen<b>${t.examen?hm(t.examen):'—'}</b></div><div>Tomas<b>${t.tomas}</b></div></div>
+  <div class="card">${vs.map(v=>filaVuelo(v,'alumno')).join('')||'<p class="sm">Todavía no has anotado vuelos.</p>'}</div>
+  <div class="msg info">Este es tu diario mientras eres alumno. Cuando apruebes, todos estos vuelos pasarán a tu logbook de piloto con su tipo: doble mando, solo o examen.</div>`;
+}
+function filaVuelo(v,como){const d=new Date(v.fecha+'T12:00');
+  const quien=como==='alumno'?(v.tipo==='examen'?'Examinador '+esc(v.examinador):(v.tipo==='solo'?'Instructor en tierra ':'Instructor ')+esc(UN(v.instructor).nombre)):'Alumno '+esc(UN(v.alumno).nombre);
+  const est=v.tipo==='examen'?'':v.nota?`<span class="chip ok" style="margin-left:4px">Nota</span>`:`<span class="chip warn" style="margin-left:4px">Sin nota</span>`;
+  return `<button class="fl" data-act="ver-vuelo" data-id="${v.id}"><div class="d">${d.getDate()}<br>${MESES[d.getMonth()].slice(0,3)}</div><div><b>${A(v.avion).mat} · ${esc(lecTxt(v.leccion))}</b> ${typ(v.tipo)}${est}<div class="sm">${quien} · ${v.tomas} toma${+v.tomas===1?'':'s'}</div></div><b>${hm(v.min)}</b></button>`}
+function detalleVuelo(id,gestion){
+  const v=DB.vuelos.find(x=>x.id===id);if(!v){S.vsel=null;return ''}
+  const n=v.nota;
+  let h=`<div class="row"><button class="btn sm ghost" data-act="cerrar-vuelo">‹ Volver</button>${typ(v.tipo)}</div>
+  <div class="card"><span class="lbl">${fLarga(v.fecha)} · ${v.hora}</span><h3 style="margin-top:4px">${+v.leccion?'Lección '+v.leccion+' · '+esc(LEC(v.leccion).t):'Vuelo de práctica (sin lección)'}</h3>
+  <div class="sm" style="margin-top:3px">${A(v.avion).mat} · ${esc(v.salida)} → ${esc(v.destino)} · <b style="color:var(--ink)">${hmTxt(v.min)}</b> · ${v.tomas} toma${+v.tomas===1?'':'s'} · horómetro ${horoTxt(v.horoSal,A(v.avion))} → ${horoTxt(v.horoLle,A(v.avion))}</div>
+  <div class="row" style="margin-top:8px;justify-content:flex-start;gap:6px"><span class="who">Alumno: ${esc(UN(v.alumno).nombre)}</span>${v.tipo==='examen'?`<span class="who" style="background:var(--spbg);color:var(--sp)">Examinador: ${esc(v.examinador)}</span>`:`<span class="who" style="background:var(--soft);color:var(--accent)">${v.tipo==='solo'?'Instructor en tierra':'Instructor'}: ${esc(UN(v.instructor).nombre)}</span>`}</div></div>`;
+  if(n){h+=`${LEC(v.leccion).ej.length?'':`<div class="msg ok">✓ Revisado por ${esc(UN(n.por).nombre)}.</div>`}<div class="card" style="${LEC(v.leccion).ej.length?'':'display:none'}"><span class="lbl">Nota del instructor</span>${LEC(v.leccion).ej.map((e,i)=>`<div class="ex"><span>${esc(e)}</span><span class="chip ${['','bad','warn','ok','ok'][n.g[i]]||''}">${n.g[i]||'—'} · ${GRADOS[n.g[i]]||''}</span></div>`).join('')}
+    <div class="row" style="margin-top:8px"><span class="sm">Resultado de la lección</span>${chipEst(n.res)}</div></div>
+    ${n.com?`<div class="card"><span class="lbl">Comentario</span><div class="quote" style="margin-top:6px">${esc(n.com)}</div>${n.prox?`<span class="lbl" style="display:block;margin-top:10px">Para la próxima clase</span><p style="font-size:.88rem;margin-top:3px">${esc(n.prox)}</p>`:''}</div>`:''}`}
+  else if(v.tipo==='examen')h+=`<div class="msg info">Vuelo de examen. El resultado lo registra la cuenta Aeroclub al pasar al alumno a piloto.</div>`;
+  else h+=gestion?formNota(v):`<div class="msg warn">Tu instructor todavía no ha puesto la nota de esta clase.</div>`;
+  return h;
+}
+function aFormacion(al){
+  const tabs=['Vuelo','Teórico','Comentarios'];
+  let h=`<div class="row"><h2>Mi formación</h2><span class="sm">${esc(U(al).al.curso)}</span></div><div class="atabs chips">${tabs.map(t=>`<button class="${S.ftab===t?'on':''}" data-act="ftab" data-v="${t}">${t}</button>`).join('')}</div>`;
+  if(S.ftab==='Teórico')h+=teoricoHTML(al,false);
+  else if(S.ftab==='Comentarios'){const cs=DB.comentarios.filter(c=>c.alumno===al).concat(DB.vuelos.filter(v=>v.alumno===al&&v.nota&&v.nota.com).map(v=>({fecha:v.nota.fecha||v.fecha,por:v.nota.por,txt:v.nota.com,lec:v.leccion}))).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    h+=`<div class="card">${cs.map(c=>`<div class="line" style="display:block"><div class="row"><span class="sm">${fCorta(c.fecha)} · ${esc(UN(c.por).nombre)}${c.lec?' · L'+c.lec:''}</span></div><div style="font-size:.88rem;margin-top:2px">${esc(c.txt)}</div></div>`).join('')||'<p class="sm">Sin comentarios todavía.</p>'}</div>`}
+  else{h+=programaHTML(al,false);
+    h+=`<div class="card"><span class="lbl">Camino a la licencia</span><div class="flow" style="margin-top:6px"><div class="on">Alumno<br>en formación</div><div class="${DB.vuelos.some(v=>v.alumno===al&&v.tipo==='examen')?'on':''}">Examen<br>AESA</div><div>Piloto<br>logbook y reservas</div></div>
+    <p class="sm" style="margin-top:6px">Cuando apruebes, el Aeroclub te pasará a piloto: tendrás tu logbook con todas tus horas de escuela ya anotadas y, si quieres, acceso a las reservas.</p></div>`}
+  return h;
+}
+function programaHTML(al,gestion){
+  return PROGRAMA.map(f=>{const n=f.lecciones.filter(([k])=>estadoLec(al,k)==='ok').length;
+    return `<div class="card"><div class="ph"><span class="n">FASE ${f.fase}</span><b>${esc(f.titulo)}</b><span class="sm" style="margin-left:auto">${n}/${f.lecciones.length}</span></div><div class="pbar" style="margin-top:0"><i style="width:${n/f.lecciones.length*100}%"></i></div>
+    ${f.lecciones.map(([k,t])=>`<div class="line"><span><b style="font-family:var(--f-mono);color:var(--muted);margin-right:6px">${k}</b>${esc(t)}</span>${gestion?`<span class="mk"><button class="${estadoLec(al,k)==='pr'?'pr':''}" data-act="lec" data-al="${al}" data-n="${k}" data-v="pr">En curso</button><button class="${estadoLec(al,k)==='ok'?'ok':''}" data-act="lec" data-al="${al}" data-n="${k}" data-v="ok">Logrado</button></span>`:chipEst(estadoLec(al,k))}</div>`).join('')}</div>`}).join('');
+}
+function teoricoHTML(al,gestion){const t=DB.teorico[al]||{};const n=TEORICO.filter(m=>t[m]>=5).length;
+  return `<div class="card"><div class="row"><span class="lbl">Teórico de la escuela</span><span class="sm">${n} de ${TEORICO.length} aprobadas</span></div>${TEORICO.map(m=>`<div class="line"><span>${esc(m)}</span>${t[m]!=null?`<span class="chip ${t[m]>=5?'ok':'bad'}">${t[m]>=5?'Aprobado':'Suspendido'} · ${String(t[m]).replace('.',',')}</span>`:gestion?`<span class="row" style="gap:6px"><input id="tn-${al}-${TEORICO.indexOf(m)}" placeholder="Nota" inputmode="decimal" style="width:70px;min-height:30px;padding:3px 8px"><button class="btn sm" data-act="teo" data-al="${al}" data-i="${TEORICO.indexOf(m)}">Poner</button></span>`:'<span class="chip">Pendiente</span>'}</div>`).join('')}</div>`}
+function aHoras(al){
+  const s=saldo(al);
+  return `<div class="row"><h2>Mis horas</h2><span class="sm">Escuela</span></div>
+  <div class="card"><span class="lbl">Me quedan</span><div class="row" style="align-items:end"><div class="big ${s<0?'neg':''}">${hmTxt(s)}</div>${s<=0?'<span class="chip bad">Sin horas</span>':s<60?'<span class="chip warn">Quedan pocas</span>':'<span class="chip ok">Al día</span>'}</div>
+  <div class="sm" style="margin-top:4px">Cada vuelo de escuela descuenta el tiempo del horómetro. Para comprar otro paquete de 10 h, habla con tu instructor.</div></div>
+  ${movimientosHTML(al,false)}`;
+}
+function movimientosHTML(al,gestion){
+  const mv=[...DB.paquetes.filter(p=>p.alumno===al).map(p=>({f:p.fecha,o:0,txt:'Paquete de '+hmTxt(p.min),sub:'añadido por '+UN(p.por).nombre,min:p.min,id:p.id,paq:true})),
+   ...DB.ajustes.filter(a=>a.alumno===al).map(a=>({f:a.fecha,o:1,txt:'Ajuste: '+a.motivo,sub:'por '+UN(a.por).nombre,min:a.min})),
+   ...DB.vuelos.filter(v=>v.alumno===al).map(v=>({f:v.fecha,o:2,txt:lecTxt(v.leccion)+' · '+A(v.avion).mat,sub:TIPOS[v.tipo]+(v.tipo==='examen'?' · '+v.examinador:' · instructor '+UN(v.instructor).nombre),min:-v.min}))].sort((a,b)=>(b.f+b.o).localeCompare(a.f+a.o));
+  const paqs=DB.paquetes.filter(p=>p.alumno===al);
+  return `<div class="card"><span class="lbl">Paquetes comprados · ${paqs.length}</span>${paqs.map(p=>`<div class="line"><span><span class="chip">Escuela</span> Paquete de ${hmTxt(p.min)} · ${fNum(p.fecha)}</span><span class="sm">${esc(nombre1(UN(p.por).nombre))}</span></div>`).join('')||'<p class="sm">Ninguno.</p>'}</div>
+  <div class="card"><span class="lbl">Movimientos</span>${mv.slice(0,gestion?40:25).map(m=>`<div class="line"><span>${fCorta(m.f)} · ${esc(m.txt)}<br><span class="sm">${esc(m.sub)}</span></span><span class="${m.min<0?'neg':''}" style="${m.min>0?'color:var(--ok);font-weight:600':''}">${m.min>0?'+':''}${hm(m.min)}</span></div>`).join('')||'<p class="sm">Sin movimientos.</p>'}</div>`;
+}
+
+/* ---------- ficha de datos del alumno (obligatoria por normativa) ---------- */
+const edad=f=>{if(!f)return null;const n=new Date(f+'T12:00'),h=new Date();let e=h.getFullYear()-n.getFullYear();if(h.getMonth()<n.getMonth()||(h.getMonth()===n.getMonth()&&h.getDate()<n.getDate()))e--;return e};
+const CAMPOS=[['nombre','Nombre y apellidos','u'],['dni','DNI / NIE',''],['nacimiento','Fecha de nacimiento','date'],['email','Correo','u'],['telefono','Teléfono',''],['direccion','Dirección',''],['cp','Código postal',''],['poblacion','Población',''],
+  ['emergNombre','Contacto de emergencia',''],['emergTel','Teléfono de emergencia',''],['medicoClase','Certificado médico: clase',''],['medicoEmision','Certificado médico: emisión','date'],['medico','Certificado médico: caducidad','date'],['matricula','Nº de matrícula en la escuela',''],['curso','Curso',''],['inicio','Fecha de inicio','date']];
+const ALUMNO_EDITA=['telefono','direccion','cp','poblacion','emergNombre','emergTel','medicoClase','medicoEmision','medico'];
+function valCampo(u,k){return ['nombre','email'].includes(k)?u[k]:u.al[k]}
+function faltan(u){return CAMPOS.filter(([k])=>!String(valCampo(u,k)||'').trim()).map(x=>x[1])}
+function fichaDatos(al,modo){/* modo: 'alumno' | 'ver' | 'editar' */
+  const u=U(al),a=u.al,e=edad(a.nacimiento),dm=diasEntre(today(),a.medico),fl=faltan(u),ed=S.edit===al;
+  const val=(k,t)=>{const v=valCampo(u,k);return t==='date'?fNum(v):esc(v)};
+  const editable=k=>ed&&(modo==='editar'||(modo==='alumno'&&ALUMNO_EDITA.includes(k)));
+  const fila=([k,l,t])=>`<div class="dato"><span class="sm">${l.replace('Certificado médico: ','').replace(/^./,x=>x.toUpperCase())}</span>${editable(k)?`<input data-d="${k}" ${t==='date'?'type="date"':''} value="${esc(valCampo(u,k)||'')}">`:`<b>${val(k,t)||'<span class="neg">Falta</span>'}</b>`}</div>`;
+  const grupo=(t,ks)=>`<div class="card"><span class="lbl">${t}</span><div class="datos">${CAMPOS.filter(c=>ks.includes(c[0])).map(fila).join('')}</div></div>`;
+  let h='';
+  if(fl.length)h+=`<div class="msg bad">⛔ Faltan datos obligatorios: ${esc(fl.join(', '))}.</div>`;
+  if(dm<0)h+=`<div class="msg bad">⛔ Certificado médico caducado desde el ${fNum(a.medico)}. No puede volar.</div>`;else if(dm<=60)h+=`<div class="msg warn">⚠ El certificado médico caduca en ${dm} días (${fNum(a.medico)}).</div>`;else h+=`<div class="msg ok">✓ Certificado médico en vigor hasta el ${fNum(a.medico)}.</div>`;
+  if(e!=null&&e<16)h+=`<div class="msg bad">⛔ Tiene ${e} años: para ser alumno piloto hacen falta 16.</div>`;else if(e!=null&&e<18)h+=`<div class="msg info">Menor de edad (${e} años): conviene guardar la autorización de padre, madre o tutor.</div>`;
+  h+=grupo('Datos personales',['nombre','dni','nacimiento','email','telefono'])+grupo('Dirección',['direccion','cp','poblacion'])+grupo('Contacto de emergencia',['emergNombre','emergTel'])+grupo('Certificado médico',['medicoClase','medicoEmision','medico'])+grupo('Escuela',['matricula','curso','inicio']);
+  h+=`<div class="card"><span class="lbl">Instructor y suelta</span><div class="datos"><div class="dato"><span class="sm">Instructor</span><b>${esc(UN(a.instructor).nombre)}</b></div><div class="dato"><span class="sm">Suelta</span><b>${a.suelta?A(a.suelta.avion).mat+' desde '+fNum(a.suelta.desde):'No'}</b></div>${e!=null?`<div class="dato"><span class="sm">Edad</span><b>${e} años</b></div>`:''}</div></div>`;
+  if(modo==='alumno'||modo==='editar')h+=ed?`<div class="two"><button class="btn ghost" data-act="cancelar-edit">Cancelar</button><button class="btn" data-act="guardar-ficha" data-al="${al}">Guardar cambios</button></div>${modo==='alumno'?'<p class="sm">Nombre, DNI, fecha de nacimiento y correo solo los cambia el Aeroclub.</p>':''}`
+    :`<button class="btn ghost full" data-act="editar-ficha" data-al="${al}">${modo==='alumno'?'Actualizar mis datos de contacto o el médico':'Editar la ficha'}</button>`;
+  else h+=`<p class="sm">Solo lectura.</p>`;
+  h+=`<button class="btn ghost full" data-act="copiar-ficha" data-al="${al}">Copiar la ficha (para imprimir o archivar)</button>`;
+  return h;
+}
+
+/* =====================================================================
+   INSTRUCTOR (y cuenta principal cuando entra en la ficha)
+   ===================================================================== */
+function vInstructor(){
+  const u=me();
+  let h=topBar('Aeroclub · Escuela','<span class="who" style="background:#fff;color:#6a3fc4">Instructor</span>')+parteBar();
+  const np=pendientesDe(u.id).length;
+  const items=[['inicio','Hoy'],['planning','Planning'],['alumnos','Alumnos'],['notas','Notas',np||'']];
+  h+=`<div class="wrap ${S.view==='planning'?'wide':''}">`+({inicio:iHoy,alumnos:iAlumnos,notas:iNotas,clases:iReservas,planning:iPlanning}[S.view]||iHoy)()+`</div>`;
+  return h+nav(items);
+}
+function iHoy(){
+  const u=me(),mis=alumnos().filter(a=>a.al.instructor===u.id),hoy=DB.clases.filter(c=>c.instructor===u.id&&c.fecha===today()).sort((a,b)=>a.desde.localeCompare(b.desde)),np=pendientesDe(u.id);
+  let h=`<div class="saludo"><div><span class="lbl">Instructor · ${fLarga(today())}</span><h2>Hola, ${esc(nombre1(u.nombre))}</h2></div><button class="btn sm" data-act="nueva-clase" style="white-space:nowrap">+ Clase</button></div>`;
+  if(np.length)h+=`<button class="msg warn" style="text-align:left;border:0;width:100%;cursor:pointer" data-act="view" data-v="notas">✎ Tienes <b>${np.length}</b> vuelo${np.length===1?'':'s'} de tus alumnos sin nota. Toca para ponerla.</button>`;
+  h+=`<div class="card" style="border-color:var(--accent)"><div class="row"><span class="lbl">Mis clases de hoy</span><span class="sm">${hoy.length}</span></div>${hoy.map(c=>`<div class="line"><span><b>${c.desde}</b> ${esc(UN(c.alumno).nombre)} · ${esc(lecTxt(c.leccion))}<br><span class="sm">${A(c.avion).mat} · hasta ${c.hasta}</span></span>${DB.vuelos.some(v=>v.alumno===c.alumno&&v.fecha===today())?'<span class="chip ok">Volado</span>':'<span class="chip">Pendiente</span>'}</div>`).join('')||'<p class="sm" style="margin-top:4px">Sin clases hoy.</p>'}</div>`;
+  h+=`<div class="card"><span class="lbl">Mis alumnos · ${mis.length}</span>${mis.map(stuRow).join('')||'<p class="sm">No tienes alumnos asignados.</p>'}</div>`;
+  return h;
+}
+function stuRow(a){const [k,t]=estadoAlumno(a.id),uv=ultimoVuelo(a.id),c=proxClase(a.id);
+  return `<button class="stu" data-act="ficha" data-id="${a.id}"><div class="row" style="justify-content:flex-start;gap:10px"><span class="av">${ini(a.nombre)}</span><div style="flex:1;min-width:0;text-align:left"><div class="row"><b>${esc(a.nombre)}</b><span class="chip ${k}">${t}</span></div><div class="sm">L${proxLeccion(a.id).n} ${esc(proxLeccion(a.id).t)} · ${uv?'último vuelo '+(uv===today()?'hoy':'hace '+diasEntre(uv,today())+' días'):'sin vuelos'} · ${hmTxt(saldo(a.id))}</div></div></div><div class="pbar" style="margin:4px 0 0 44px"><i style="width:${pct(a.id)}%"></i></div>${c?`<div class="sm" style="margin-left:44px;text-align:left">Próxima clase: ${fCorta(c.fecha)} ${c.desde}</div>`:''}</button>`}
+function iAlumnos(){
+  if(S.sel)return ficha(S.sel);
+  const u=me(),todos=alumnos(),mis=todos.filter(a=>a.al.instructor===u.id);
+  return `<div class="row"><h2>Alumnos</h2><span class="row" style="gap:6px"><button class="btn sm ghost" data-act="nueva-clase">+ Clase</button><button class="btn sm" data-act="alta">+ Alta de alumno</button></span></div>
+  <div class="card"><span class="lbl">Mis alumnos · ${mis.length}</span>${mis.map(stuRow).join('')||'<p class="sm">No tienes alumnos asignados.</p>'}</div>
+  ${bajas().filter(a=>a.al.instructor===u.id).length?`<div class="card"><span class="lbl">De baja · expediente guardado</span>${bajas().filter(a=>a.al.instructor===u.id).map(a=>`<button class="usr" data-act="ficha" data-id="${a.id}"><span class="av">${ini(a.nombre)}</span><span style="flex:1;text-align:left"><b>${esc(a.nombre)}</b><span class="sm">Baja el ${fNum(a.al.bajaFecha)}</span></span><span class="sm">›</span></button>`).join('')}</div>`:''}
+  <p class="sm">Puedes dar de alta alumnos, modificar sus datos y borrarlos. Solo ves y gestionas a los tuyos; la cuenta Aeroclub puede pasar un alumno a otro instructor.</p>`;
+}
+function ficha(al){
+  const a=U(al);if(!a||!a.al){S.sel=null;return ''}
+  if(!puedeGestionar(al))return `<div class="msg bad">No es alumno tuyo.</div>`;
+  if(S.vsel)return detalleVuelo(S.vsel,true);
+  const tabs=['Datos','Progreso','Horas','Vuelos','Suelta'];
+  let h=`<div class="row fhead"><button class="btn sm ghost" data-act="cerrar-ficha">‹ ${esPrincipal()?'Escuela':'Alumnos'}</button><span class="row" style="gap:6px"><span class="who">${a.al.instructor===S.user?'Tu alumno':'Instructor '+esc(UN(a.al.instructor).nombre)}</span><button class="btn sm" data-act="nueva-clase">+ Clase</button></span></div>
+  <div class="card"><div class="row" style="justify-content:flex-start;gap:12px"><span class="av" style="width:44px;height:44px">${ini(a.nombre)}</span><div style="flex:1;min-width:0"><h3>${esc(a.nombre)}</h3><div class="sm">${esc(a.al.curso)} · ${esc(a.al.dni||'sin DNI')} · ${esc(a.al.telefono||'')}</div><div class="sm">Médico ${diasEntre(today(),a.al.medico)<0?'<b class="neg">caducado</b>':'hasta '+fNum(a.al.medico)}</div></div><div style="text-align:right"><b style="font:700 1.3rem var(--f-disp)" class="${saldo(al)<0?'neg':''}">${hm(saldo(al))}</b><div class="sm">de escuela</div></div></div>
+  <div class="row" style="margin-top:8px"><span class="sm">${logradas(al)} de ${LECCIONES.length} lecciones · fase ${faseActual(al).fase}</span><b>${pct(al)} %</b></div><div class="pbar"><i style="width:${pct(al)}%"></i></div>
+  <div class="tabs2" style="margin-top:8px">${tabs.map(t=>`<button class="${S.tab===t?'on':''}" data-act="tab" data-v="${t}">${t}</button>`).join('')}</div></div>`;
+  if(S.tab==='Horas'){h+=`<div class="card" style="display:grid;gap:8px"><span class="lbl">Añadir paquete</span>
+    <div class="two"><div class="field"><label>Horas</label><input id="ph" type="number" min="1" max="50" step="0.5" value="10"></div><div class="field"><label>Fecha de pago</label><input id="pf" type="date" value="${today()}"></div></div>
+    <button class="btn" data-act="add-paquete" data-al="${al}">Añadir paquete a ${esc(nombre1(a.nombre))}</button>
+    <span class="lbl" style="margin-top:4px">Ajuste</span><div class="two"><input id="ajm" placeholder="± minutos (ej. -15)" inputmode="numeric"><input id="ajt" placeholder="Motivo"></div><button class="btn sm ghost" data-act="add-ajuste" data-al="${al}">Guardar ajuste</button></div>`+movimientosHTML(al,true)}
+  else if(S.tab==='Vuelos'){const t=totales(al);h+=`<div class="tl"><div>Doble mando<b>${hm(t.dm)}</b></div><div>Solo<b>${hm(t.solo)}</b></div><div>Examen<b>${t.examen?hm(t.examen):'—'}</b></div><div>Tomas<b>${t.tomas}</b></div></div><div class="card">${vuelosDe(al).map(v=>filaVuelo(v,'alumno')).join('')||'<p class="sm">Sin vuelos.</p>'}</div>`}
+  else if(S.tab==='Suelta')h+=sueltaHTML(al);
+  else if(S.tab==='Datos')h+=fichaDatos(al,'editar')+(a.al.estado==='baja'?`<div class="card" style="display:grid;gap:8px;border-color:var(--warn)"><span class="lbl">Alumno de baja</span><p class="sm">De baja desde el ${fNum(a.al.bajaFecha)}${a.al.bajaMotivo?' · '+esc(a.al.bajaMotivo):''}. No puede entrar en la app; la escuela conserva su expediente.</p><button class="btn ghost" data-act="reactivar" data-al="${al}">Volver a dar de alta</button></div>`
+  :`<div class="card" style="display:grid;gap:8px;border-color:var(--warn)"><span class="lbl">Dar de baja</span><p class="sm">Para un alumno que deja la escuela: deja de tener acceso a la app, se cancelan sus clases y la escuela conserva todo su expediente (ficha, vuelos, notas y horas).</p><input id="bm" placeholder="Motivo (opcional)"><button class="btn ghost" style="color:var(--warn)" data-act="baja" data-al="${al}">${S.confirm==='bj'+al?'Pulsa otra vez para dar de baja':'Dar de baja'}</button></div>`)+`<div class="card" style="display:grid;gap:8px;border-color:var(--bad)"><span class="lbl">Borrar alumno</span><p class="sm">Borra a ${esc(nombre1(a.nombre))} de la escuela con su ficha, sus vuelos, notas, horas y clases. Úsalo solo para un alta hecha por error: no se puede deshacer.</p><button class="btn danger" data-act="borrar-alumno" data-al="${al}">${S.confirm==='ba'+al?'Pulsa otra vez para borrar a '+esc(a.nombre)+' y todos sus datos':'Borrar alumno'}</button></div>`;
+  else h+=`<div class="sm">Toca para marcar el estado de cada lección. El alumno lo ve al momento.</div>`+programaHTML(al,true)+teoricoHTML(al,true)+`<div class="card" style="display:grid;gap:6px"><span class="lbl">Comentario para el alumno</span><textarea id="com" rows="2" placeholder="Lo verá en su Inicio y en Formación"></textarea><button class="btn sm" data-act="add-com" data-al="${al}">Enviar comentario</button></div>`;
+  if(esPrincipal()&&a.al.estado==='formacion')h+=`<div class="card" style="display:grid;gap:8px;border-color:var(--ok)"><span class="lbl">Cuenta Aeroclub</span><div class="field"><label>Instructor asignado</label><select data-instr="${al}">${instructores().map(i=>`<option value="${i.id}" ${i.id===a.al.instructor?'selected':''}>${esc(i.nombre)}</option>`).join('')}</select></div><button class="btn" style="background:var(--ok)" data-act="pasar" data-al="${al}">✓ Ha aprobado: pasar a piloto</button></div>`;
+  return h;
+}
+function sueltaHTML(al){
+  const a=U(al),s=a.al.suelta,f1=PROGRAMA[0].lecciones.every(([n])=>estadoLec(al,n)==='ok'),l11=estadoLec(al,11)==='ok',med=a.al.medico>=today();
+  if(s)return `<div class="card" style="display:grid;gap:8px;border-color:var(--sp)"><div class="row"><span class="lbl">Suelta concedida</span><span class="chip sp">${A(s.avion).mat}</span></div>
+   <div class="line"><span>Desde</span><b>${fNum(s.desde)}</b></div><div class="line"><span>Concedida por</span><b>${esc(UN(s.por).nombre)}</b></div><div class="line" style="display:block"><span class="sm">Condiciones</span><div>${esc(s.cond)}</div></div>
+   <button class="btn danger" data-act="quitar-suelta" data-al="${al}">${S.confirm==='qs'+al?'Pulsa otra vez para retirar la suelta':'Retirar la suelta'}</button>
+   <p class="sm">Con la suelta, el alumno puede anotar vuelos «Solo supervisado» en este avión, siempre indicando el instructor en tierra.</p></div>`;
+  const ok=f1&&l11&&med;
+  const r=(c,t)=>`<div class="req"><i class="${c?'y':'n'}">${c?'✓':'—'}</i><span>${t}</span></div>`;
+  const n1=PROGRAMA[0].lecciones.filter(([n])=>estadoLec(al,n)==='ok').length;
+  return `<div class="card" style="display:grid;gap:10px;border-color:var(--sp)"><div class="row"><span class="lbl">Autorizar la suelta</span><span class="chip sp">Fase 2</span></div>
+   ${r(f1,'Fase 1 completa <span class="sm">· '+n1+' de '+PROGRAMA[0].lecciones.length+' lecciones</span>')}${r(med,'Certificado médico vigente <span class="sm">· hasta '+fNum(a.al.medico)+'</span>')}${r(l11,'Lección 11 «Revisión antes de la suelta» <span class="sm">· '+(l11?'lograda':'pendiente')+'</span>')}
+   <div class="two"><div class="field"><label>Avión</label><select id="sa">${DB.aviones.map(x=>`<option value="${x.id}">${x.mat}</option>`).join('')}</select></div><div class="field"><label>Desde el día</label><input id="sd" type="date" value="${today()}"></div></div>
+   <div class="field"><label>Condiciones</label><input id="sc" value="Circuitos en LEIG · viento máx. 10 kt · instructor en tierra"></div>
+   ${ok?'':`<div class="field"><label>Motivo para darla sin cumplir los requisitos</label><input id="sm" placeholder="Obligatorio si falta algún requisito"></div>`}
+   <button class="btn" style="background:var(--sp)" data-act="dar-suelta" data-al="${al}">Dar la suelta a ${esc(nombre1(a.nombre))}</button>
+   <p class="sm">Desde ese momento podrá anotar vuelos «Solo supervisado» en ese avión, siempre indicando el instructor en tierra. Puedes retirarla cuando quieras.</p></div>`;
+}
+function iNotas(){
+  if(S.vsel)return detalleVuelo(S.vsel,true);
+  const p=pendientesDe(me().id);
+  return `<div class="row"><h2>Notas pendientes</h2><span class="chip ${p.length?'warn':'ok'}">${p.length}</span></div>
+  ${p.map(v=>`<button class="card nt" data-act="ver-vuelo" data-id="${v.id}"><div class="row"><span class="lbl">Vuelo anotado por tu alumno</span><span class="sm">${fCorta(v.fecha)}</span></div><h3 style="margin-top:4px">${esc(UN(v.alumno).nombre)} · ${esc(lecTxt(v.leccion))}</h3><div class="sm">${A(v.avion).mat} · ${hmTxt(v.min)} · ${TIPOS[v.tipo].toLowerCase()} · ${v.tomas} toma${+v.tomas===1?'':'s'}</div></button>`).join('')||'<div class="msg ok">✓ Todas las clases tienen nota.</div>'}
+  <p class="sm">Cuando un alumno anota un vuelo contigo, aparece aquí. El vuelo ya está en tu logbook como instructor.</p>`;
+}
+function formNota(v){
+  if(!puedeGestionar(v.alumno)||(!esPrincipal()&&v.instructor!==S.user))return `<div class="msg warn">Pendiente de nota de ${esc(UN(v.instructor).nombre)}.</div>`;
+  const N=S.nota&&S.nota.id===v.id?S.nota:(S.nota={id:v.id,g:LEC(v.leccion).ej.map(()=>0),res:'ok',com:'',prox:'',lle:horoTxt(v.horoLle,A(v.avion))});
+  if(!LEC(v.leccion).ej.length)return `<div class="card" style="display:grid;gap:8px"><span class="lbl">Vuelo de práctica</span><p class="sm">Sin lección ni ejercicios que puntuar: deja un comentario si quieres.</p><div class="field"><label>Comentario para ${esc(nombre1(UN(v.alumno).nombre))}</label><textarea data-n="com" rows="3">${esc(N.com)}</textarea></div>
+   <div class="field"><label>Horómetro de llegada (corrígelo si el alumno se equivocó)</label><input data-n="lle" value="${esc(N.lle)}" style="font-family:var(--f-mono)"></div></div><button class="btn full" data-act="guardar-nota" data-id="${v.id}">Dar por revisado</button>`;
+  return `<div class="card"><span class="lbl">Ejercicios</span>${LEC(v.leccion).ej.map((e,i)=>`<div class="ex"><span>${esc(e)}</span><span class="grade">${[1,2,3,4].map(g=>`<button class="${N.g[i]===g?'g'+g:''}" data-act="grado" data-i="${i}" data-v="${g}" title="${GRADOS[g]}">${g}</button>`).join('')}</span></div>`).join('')}
+   <p class="sm" style="margin-top:6px">1 a repetir · 2 mejorable · 3 bien · 4 dominado</p>
+   <div class="field" style="margin-top:8px"><label>Resultado de la lección</label><div class="chips">${[['ok','Logrado'],['pr','En curso'],['rep','A repetir']].map(([k,t])=>`<button class="${N.res===k?'on':''}" data-act="nres" data-v="${k}">${t}</button>`).join('')}</div></div></div>
+   <div class="card" style="display:grid;gap:8px"><div class="field"><label>Comentario para ${esc(nombre1(UN(v.alumno).nombre))}</label><textarea data-n="com" rows="3">${esc(N.com)}</textarea></div>
+   <div class="field"><label>Próxima clase</label><input data-n="prox" value="${esc(N.prox)}" placeholder="Qué preparar"></div>
+   <div class="field"><label>Horómetro de llegada (corrígelo si el alumno se equivocó)</label><input data-n="lle" value="${esc(N.lle)}" style="font-family:var(--f-mono)"></div></div>
+   <button class="btn full" data-act="guardar-nota" data-id="${v.id}">Guardar nota</button>`;
+}
+function iLogbook(){
+  const u=me(),vs=DB.vuelos.filter(v=>v.instructor===u.id&&v.tipo==='dm').sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
+  const tot=vs.reduce((s,v)=>s+v.min,0);
+  return `<div class="msg info">En la app real este es tu logbook de siempre. Aquí solo se muestran los vuelos que llegan solos desde la Escuela.</div>
+  <div class="row"><h2>Logbook ULM</h2><span class="sm">${esc(u.nombre)}</span></div>
+  <div class="tl"><div>Como instructor<b>${hm(tot)}</b></div><div>Vuelos<b>${vs.length}</b></div><div>Alumnos<b>${new Set(vs.map(v=>v.alumno)).size}</b></div><div>Este mes<b>${hm(vs.filter(v=>v.fecha.slice(0,7)===today().slice(0,7)).reduce((s,v)=>s+v.min,0))}</b></div></div>
+  <div class="card">${vs.slice(0,30).map(v=>{const d=new Date(v.fecha+'T12:00');return `<div class="fl"><div class="d">${d.getDate()}<br>${MESES[d.getMonth()].slice(0,3)}</div><div><b>${A(v.avion).mat} · ${esc(v.salida.split('-')[0])}</b> <span class="typ in">Instructor</span><div class="sm">Alumno ${esc(UN(v.alumno).nombre)} · ${esc(lecTxt(v.leccion))}</div></div><b>${hm(v.min)}</b></div>`}).join('')||'<p class="sm">Sin vuelos como instructor.</p>'}</div>
+  <p class="sm">Solo entran los vuelos en doble mando, porque vas a bordo. Los vuelos solos supervisados desde tierra quedan en la ficha del alumno, con tu nombre, pero no suman horas a tu logbook. No te descuentan horas de tus paquetes.</p>`;
+}
+function lunes(s){const d=new Date(s+'T12:00'),w=(d.getDay()+6)%7;return addDays(s,-w)}
+function iPlanning(){
+  const ini=S.wk||lunes(today()),fin=addDays(ini,6),u=me(),ver=esPrincipal()?(S.pins||'todos'):u.id;
+  const cl=DB.clases.filter(c=>c.fecha>=ini&&c.fecha<=fin&&(ver==='todos'||c.instructor===+ver)).sort((a,b)=>(a.fecha+a.desde).localeCompare(b.fecha+b.desde));
+  const mins=c=>{const a=c.desde.split(':'),b=c.hasta.split(':');return (+b[0]*60+ +b[1])-(+a[0]*60+ +a[1])};
+  const tot=cl.reduce((s,c)=>s+mins(c),0),d1=new Date(ini+'T12:00'),d2=new Date(fin+'T12:00');
+  let h=`<div class="row"><h2>${esPrincipal()?'Planning de la escuela':'Mi planning'}</h2><button class="btn sm" data-act="nueva-clase">+ Clase</button></div>
+  <div class="days"><button class="btn sm ghost" data-act="wk" data-v="-7">‹</button><b>${d1.getDate()} ${MESES[d1.getMonth()].slice(0,3)} – ${d2.getDate()} ${MESES[d2.getMonth()].slice(0,3)} ${d2.getFullYear()}</b><span class="row" style="gap:6px">${ini!==lunes(today())?'<button class="btn sm ghost" data-act="wkhoy">Hoy</button>':''}<button class="btn sm ghost" data-act="wk" data-v="7">›</button></span></div>
+  ${esPrincipal()?`<div class="chips"><button class="${ver==='todos'?'on':''}" data-act="pins" data-v="todos">Todos</button>${instructores().map(i=>`<button class="${+ver===i.id?'on':''}" data-act="pins" data-v="${i.id}">${esc(nombre1(i.nombre))}</button>`).join('')}</div>`:''}
+  <div class="sm">${cl.length} clase${cl.length===1?'':'s'} esta semana · ${hmTxt(tot)} reservadas${esPrincipal()?'':' · toca una clase para ver al alumno'}</div><div class="plan">`;
+  for(let i=0;i<7;i++){const d=addDays(ini,i),dt=new Date(d+'T12:00'),cs=cl.filter(c=>c.fecha===d);
+    h+=`<div class="pday ${d===today()?'hoy':''} ${cs.length?'':'vacio'}"><div class="ph2"><b>${DIAS[dt.getDay()]}</b> <span style="text-transform:none">${dt.getDate()} ${MESES[dt.getMonth()].slice(0,3)}</span>${cs.length?`<span class="sm">${hmTxt(cs.reduce((s,c)=>s+mins(c),0))}</span>`:''}</div>
+    ${cs.map(c=>{const vol=DB.vuelos.some(v=>v.alumno===c.alumno&&v.fecha===c.fecha);return `<button class="pcl" data-act="ficha" data-id="${c.alumno}" style="--pc:${c.avion===1?'var(--accent)':'#7a3fc4'}"><b>${c.desde}–${c.hasta}</b> <span class="m">${A(c.avion).mat}</span><br>${esc(UN(c.alumno).nombre)}<br><span class="sm">${esc(lecTxt(c.leccion))}${esPrincipal()?' · '+esc(nombre1(UN(c.instructor).nombre)):''}</span>${vol?'<br><span class="chip ok">Volado</span>':c.fecha<today()?'<br><span class="chip warn">Sin vuelo anotado</span>':''}</button>`}).join('')||'<span class="sm">Libre</span>'}</div>`}
+  return h+`</div><p class="sm">Las clases ocupan el avión en el calendario del club. Para cancelar una clase, ve a «Clases reservadas».</p><button class="btn sm ghost" data-act="view" data-v="clases">Clases reservadas (cancelar)</button>`;
+}
+function iReservas(){
+  const u=me(),cl=DB.clases.filter(c=>c.fecha>=today()&&(esPrincipal()||c.instructor===u.id)).sort((a,b)=>(a.fecha+a.desde).localeCompare(b.fecha+b.desde));
+  return `<div class="row"><h2>Clases reservadas</h2><button class="btn sm" data-act="nueva-clase">+ Reservar clase</button></div>
+  <div class="msg info">Las clases ocupan el avión en el calendario del club: los socios verán «Escuela» con el alumno en ese hueco.</div>
+  <div class="card">${cl.map(c=>`<div class="line"><span><b>${fCorta(c.fecha)} · ${c.desde}–${c.hasta}</b> · ${A(c.avion).mat}<br><span class="sm">${esc(UN(c.alumno).nombre)} · ${esc(lecTxt(c.leccion))}</span></span><button class="btn sm danger" data-act="cancelar-clase" data-id="${c.id}">${S.confirm==='cc'+c.id?'¿Cancelar?':'Cancelar'}</button></div>`).join('')||'<p class="sm">No hay clases reservadas.</p>'}</div>`;
+}
+function modalClase(){
+  const f=S.modal,mis=alumnos().filter(a=>esPrincipal()||a.al.instructor===S.user);
+  if(!f.alumno&&mis[0])f.alumno=mis[0].id;
+  const al=+f.alumno,err=errClase();
+  return `<h3>Reservar clase de escuela</h3>
+  <div class="two"><div class="field"><label>Alumno</label><select data-m="alumno">${mis.map(a=>`<option value="${a.id}" ${a.id===al?'selected':''}>${esc(a.nombre)}</option>`).join('')}</select></div>
+  <div class="field"><label>Lección</label><select data-m="leccion"><option value="0" ${String(f.leccion)==='0'?'selected':''}>Vuelo de práctica (sin lección)</option>${LECCIONES.map(l=>`<option value="${l.n}" ${l.n===+(String(f.leccion)==='0'?-1:(f.leccion||proxLeccion(al).n))?'selected':''}>L${l.n} · ${esc(l.t)}</option>`).join('')}</select></div></div>
+  <div class="field"><label>Avión</label><div class="chips">${DB.aviones.map(x=>`<button class="${x.id===+f.avion?'on':''}" data-act="m" data-k="avion" data-v="${x.id}">${x.mat}</button>`).join('')}</div></div>
+  <div class="field"><label>Día</label><input type="date" data-m="fecha" value="${f.fecha}" min="${today()}"></div>
+  <div class="two"><div class="field"><label>Desde</label><select data-m="desde">${horas().map(x=>`<option ${x===f.desde?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label>Hasta</label><select data-m="hasta">${horas().map(x=>`<option ${x===f.hasta?'selected':''}>${x}</option>`).join('')}</select></div></div>
+  ${err?`<div class="msg bad">${esc(err)}</div>`:`<div class="msg ok">✓ Avión libre · ${esc(nombre1(UN(al).nombre))} tiene ${hmTxt(saldo(al))} de escuela.</div>`}
+  <div class="two"><button class="btn ghost" data-act="cerrar">Cancelar</button><button class="btn" data-act="guardar-clase" ${err?'disabled':''}>Reservar clase</button></div>`;
+}
+const horas=()=>{const r=[];for(let m=7*60;m<=21*60;m+=30)r.push(pad(Math.floor(m/60))+':'+pad(m%60));return r};
+function errClase(){const f=S.modal,al=+f.alumno;if(!al)return 'No tienes alumnos asignados.';if(f.hasta<=f.desde)return 'La hora de fin debe ser posterior a la de inicio.';
+  if(saldo(al)<=0)return nombre1(UN(al).nombre)+' no tiene horas de escuela: añádele un paquete antes de reservar.';
+  const c=DB.clases.find(c=>c.avion===+f.avion&&c.fecha===f.fecha&&c.desde<f.hasta&&f.desde<c.hasta);if(c)return 'El '+A(f.avion).mat+' ya tiene una clase a esa hora ('+c.desde+'–'+c.hasta+').';
+  const ocu=[...raw('reservas').values()].find(r=>!r.escuela&&r.estado==='activa'&&+r.avion_id===+f.avion&&String(r.inicio).slice(0,10)===f.fecha&&String(r.inicio).slice(11,16)<f.hasta&&f.desde<String(r.fin).slice(11,16));
+  if(ocu)return 'El '+A(f.avion).mat+' está reservado a esa hora por '+UN(ocu.usuario_id).nombre+' ('+String(ocu.inicio).slice(11,16)+'–'+String(ocu.fin).slice(11,16)+').';
+  const blq=[...raw('bloqueos').values()].find(b=>+b.avion_id===+f.avion&&String(b.inicio).slice(0,10)<=f.fecha&&String(b.fin||'9999').slice(0,10)>=f.fecha);
+  if(blq)return 'El '+A(f.avion).mat+' está bloqueado ese día: '+(blq.motivo||'')+'.';
+  const d=DB.clases.find(c=>c.instructor===(esPrincipal()?U(al).al.instructor:S.user)&&c.fecha===f.fecha&&c.desde<f.hasta&&f.desde<c.hasta);if(d)return 'El instructor ya tiene otra clase a esa hora.';return ''}
+
+/* =====================================================================
+   CUENTA PRINCIPAL AEROCLUB
+   ===================================================================== */
+function vPrincipal(){
+  let h=topBar('Aeroclub · Escuela','<span class="who" style="background:#fff;color:#6a3fc4">Aeroclub</span>')+parteBar();
+  h+=`<div class="wrap wide">`;
+  if(S.sel){h+=`<div style="max-width:560px;margin:0 auto;display:grid;gap:12px;width:100%">${ficha(S.sel)}</div></div>`;return h}
+  if(S.view==='planning'){h+=iPlanning()+`<button class="btn ghost" data-act="view" data-v="inicio">‹ Volver a Escuela</button></div>`;return h}
+  if(S.view==='clases'){h+=`<div style="max-width:560px;display:grid;gap:12px">${iReservas()}<button class="btn ghost" data-act="view" data-v="inicio">‹ Volver a Escuela</button></div></div>`;return h}
+  const al=alumnos(),pil=DB.usuarios.filter(u=>u.rol==='alumno'&&u.al.estado==='piloto');
+  const mes=today().slice(0,7),vm=DB.vuelos.filter(v=>v.fecha.slice(0,7)===mes);
+  const aten=al.filter(a=>['bad','warn'].includes(estadoAlumno(a.id)[0]));
+  h+=`<div class="row" style="flex-wrap:wrap"><div style="flex:1 1 280px"><h2>Escuela</h2><span class="sm">🔒 Solo la cuenta principal «Aeroclub» nombra instructores y pasa alumnos a piloto. Los alumnos los dan de alta, modifican y borran el Aeroclub y los instructores.</span></div><span class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-start"><button class="btn sm ghost" data-act="view" data-v="planning">Planning</button><button class="btn sm ghost" data-act="instructores">Instructores (${instructores().length})</button><button class="btn sm" data-act="alta">+ Alta de alumno</button></span></div>
+  <div class="kpis"><div class="card"><span class="lbl">Alumnos en formación</span><div class="big">${al.length}</div><span class="sm">${al.filter(a=>DB.vuelos.some(v=>v.alumno===a.id&&v.tipo==='examen')).length} con examen hecho</span></div>
+   <div class="card"><span class="lbl">Vuelos de escuela este mes</span><div class="big">${vm.length}</div><span class="sm">${hm(vm.reduce((s,v)=>s+v.min,0))} h</span></div>
+   <div class="card"><span class="lbl">Notas pendientes</span><div class="big">${pendientesDe(null).length}</div><span class="sm">de los instructores</span></div>
+   <div class="card" style="${aten.length?'border-color:var(--warn)':''}"><span class="lbl">Necesitan atención</span><div class="big" style="${aten.length?'color:var(--warn)':''}">${aten.length}</div><span class="sm">parados o con pocas horas</span></div></div>
+  <div class="card"><span class="lbl">Alumnos · ${al.length}</span><div class="scroll"><table><tr><th>Alumno</th><th>Instructor</th><th>Fase</th><th>Progreso</th><th class="n">Horas</th><th>Estado</th><th></th></tr>
+   ${al.map(a=>{const [k,t]=estadoAlumno(a.id),ex=DB.vuelos.some(v=>v.alumno===a.id&&v.tipo==='examen');return `<tr><td><b>${esc(a.nombre)}</b></td><td>${esc(UN(a.al.instructor).nombre)}</td><td>${faseActual(a.id).fase} · ${esc(faseActual(a.id).titulo)}</td><td style="min-width:120px"><div class="pbar" style="margin:6px 0 0"><i style="width:${pct(a.id)}%"></i></div><span class="sm">${pct(a.id)} %</span></td><td class="n ${saldo(a.id)<0?'neg':''}">${hm(saldo(a.id))}</td><td><span class="chip ${k}">${t}</span></td><td style="white-space:nowrap">${ex?`<button class="btn sm" style="background:var(--ok)" data-act="pasar" data-al="${a.id}">Pasar a piloto</button> `:''}<button class="btn sm ghost" data-act="ficha" data-id="${a.id}">Ver</button></td></tr>`}).join('')||'<tr><td colspan="7" class="sm">No hay alumnos.</td></tr>'}</table></div></div>
+  <div class="grid3"><div class="card"><span class="lbl">Instructores</span>${instructores().length?'':'<p class="sm" style="margin:4px 0">Todavía no hay instructores: nómbralos entre los socios con licencia de instructor.</p>'}${instructores().map(i=>`<div class="line"><span><b>${esc(i.nombre)}</b></span><span class="sm">${al.filter(a=>a.al.instructor===i.id).length} alumno${al.filter(a=>a.al.instructor===i.id).length===1?'':'s'} · ${pendientesDe(i.id).length} notas pend.</span></div>`).join('')}<button class="btn sm ghost" style="margin-top:6px" data-act="instructores">Nombrar o quitar instructor</button></div>
+  ${bajas().length?`<div class="card"><span class="lbl">De baja · expediente guardado</span>${bajas().map(p=>`<div class="line"><span><b>${esc(p.nombre)}</b><br><span class="sm">Baja el ${fNum(p.al.bajaFecha)}${p.al.bajaMotivo?' · '+esc(p.al.bajaMotivo):''}</span></span><button class="btn sm ghost" data-act="ficha" data-id="${p.id}">Ver</button></div>`).join('')}</div>`:''}
+  ${pil.length?`<div class="card"><span class="lbl">Salieron de la escuela</span>${pil.map(p=>`<div class="line"><span><b>${esc(p.nombre)}</b><br><span class="sm">Licencia ${esc(p.al.licencia)} · ${fNum(p.al.examen)}</span></span><span class="chip ok">Piloto</span></div>`).join('')}</div>`:''}
+  <div class="card"><span class="lbl">Quién puede hacer qué</span><div class="line"><span>Nombrar instructores · pasar a piloto</span><span class="chip sp">Solo Aeroclub</span></div><div class="line"><span>Alta, modificar y borrar alumnos y sus datos</span><span class="chip">Aeroclub e instructores</span></div><div class="line"><span>Clases, horas, progreso, notas y sueltas</span><span class="chip">Instructores</span></div><div class="line"><span>Ver su formación y ficha, anotar sus vuelos</span><span class="chip ok">Alumno</span></div></div></div></div>`;
+  return h;
+}
+function modalAlta(){const f=S.modal,inp=(k,l,t,ph)=>`<div class="field"><label>${l}</label><input data-m="${k}" ${t?'type="'+t+'"':''} value="${esc(f[k]||'')}" ${ph?'placeholder="'+ph+'"':''}></div>`;
+  const e=edad(f.nacimiento);
+  return `<h3>Alta de alumno piloto</h3><p class="sm">Todos los campos son obligatorios para la escuela.</p>
+  <span class="lbl">Datos personales</span>
+  <div class="two">${inp('nombre','Nombre y apellidos')}${inp('dni','DNI / NIE','','12345678-A')}</div>
+  <div class="two">${inp('nacimiento','Fecha de nacimiento','date')}${inp('telefono','Teléfono','tel')}</div>
+  ${e!=null&&e<16?`<div class="msg bad">Tiene ${e} años: para ser alumno piloto hacen falta 16.</div>`:e!=null&&e<18?`<div class="msg info">Menor de edad: guarda la autorización de padre, madre o tutor.</div>`:''}
+  ${inp('email','Correo','email')}
+  <div class="two">${inp('direccion','Dirección')}${inp('cp','Código postal')}</div>${inp('poblacion','Población')}
+  <span class="lbl">Contacto de emergencia</span><div class="two">${inp('emergNombre','Nombre y parentesco')}${inp('emergTel','Teléfono','tel')}</div>
+  <span class="lbl">Certificado médico</span><div class="three">${inp('medicoClase','Clase','','LAPL')}${inp('medicoEmision','Emisión','date')}${inp('medico','Caducidad','date')}</div>
+  <span class="lbl">Escuela</span>
+  <div class="two"><div class="field"><label>Instructor</label>${esPrincipal()?`<select data-m="instructor">${instructores().map(i=>`<option value="${i.id}" ${i.id===+f.instructor?'selected':''}>${esc(i.nombre)}</option>`).join('')}</select>`:`<input value="${esc(UN(+f.instructor).nombre)}" readonly>`}</div><div class="field"><label>Curso</label><select data-m="curso">${['ULM · MAF','ULM · Autogiro','ULM · Paramotor (trike)'].map(c=>`<option ${f.curso===c?'selected':''}>${c}</option>`).join('')}</select></div></div>
+  <div class="two">${inp('matricula','Nº de matrícula','','ESC-2026-…')}<div class="field"><label>Paquete inicial</label><select data-m="paq"><option value="10" ${f.paq==='10'?'selected':''}>Escuela · 10 h</option><option value="" ${f.paq===''?'selected':''}>Ninguno</option></select></div></div>
+  <span class="lbl">Acceso a la app</span><div class="acc"><div class="opt on"><span class="box">✓</span><span><b>Escuela (como alumno)</b><span class="sm">Solo verá su formación, sus vuelos, notas, horas y su ficha.</span></span></div><div class="opt"><span class="box"></span><span><b>Logbook y reservas</b><span class="sm">Se activan cuando apruebe y lo pases a piloto.</span></span></div></div>
+  <div class="msg info">Le llegará un correo para crear su contraseña. Al entrar en la app verá solo la Escuela.</div>
+  <div class="two"><button class="btn ghost" data-act="cerrar">Cancelar</button><button class="btn" data-act="guardar-alta">Dar de alta</button></div>`}
+function modalInstructores(){const cand=DB.usuarios.filter(u=>u.rol!=='alumno'&&u.rol!=='principal');
+  return `<h3>Instructores de la escuela</h3><p class="sm">Marca los socios con licencia de instructor. Siguen usando su logbook y las reservas como cualquier socio, y además verán la Escuela con sus alumnos.</p>
+  <div class="acc">${cand.map(u=>{const n=alumnos().filter(a=>a.al.instructor===u.id).length;return `<button class="opt ${u.instructor?'on':''}" data-act="tog-instr" data-id="${u.id}" style="text-align:left;cursor:pointer"><span class="box">${u.instructor?'✓':''}</span><span><b>${esc(u.nombre)}</b><span class="sm">${u.rol==='admin'?'Administrador del club · ':''}${u.instructor?n+' alumno'+(n===1?'':'s'):'No es instructor'}</span></span></button>`}).join('')}</div>
+  <button class="btn" data-act="cerrar">Hecho</button>`}
+function modalPasar(){
+  const f=S.modal,a=U(f.al),t=totales(a.id),s=saldo(a.id),ex=DB.vuelos.filter(v=>v.alumno===a.id&&v.tipo==='examen').sort((x,y)=>y.fecha.localeCompare(x.fecha))[0];
+  if(!f.fecha)f.fecha=ex?ex.fecha:today();
+  return `<h3>Pasar a piloto · ${esc(a.nombre)}</h3>
+  ${ex?'':`<div class="msg warn">No hay ningún vuelo de examen anotado. Puedes pasarlo igualmente si el examen se hizo fuera.</div>`}
+  <div class="two"><div class="field"><label>Fecha del examen</label><input type="date" data-m="fecha" value="${f.fecha}"></div><div class="field"><label>Nº de licencia</label><input data-m="licencia" value="${esc(f.licencia)}" placeholder="E-ULM-…" style="font-family:var(--f-mono)"></div></div>
+  <div class="card" style="box-shadow:none"><span class="lbl">1 · Su diario pasa a su logbook</span><div class="tl" style="margin-top:6px"><div>Doble mando<b>${hm(t.dm)}</b>${t.nDm} vuelos</div><div>Solo<b>${hm(t.solo)}</b>${t.nSolo} vuelos</div><div>Examen<b>${hm(t.examen)}</b>${t.nEx} vuelo${t.nEx===1?'':'s'}</div><div>Total<b>${hm(t.total)}</b>${t.n} vuelos</div></div></div>
+  <div class="card" style="box-shadow:none"><span class="lbl">2 · Las horas que le quedan pasan a reservas</span><div class="row" style="margin-top:6px"><span>Le quedan de escuela</span><b class="${s<0?'neg':''}">${hmTxt(s)}</b></div>
+   <div class="field" style="margin-top:6px"><label>${s<0?'El negativo se descontará del primer paquete de':'Pasarlas al avión'}</label><div class="chips">${DB.aviones.map(x=>`<button class="${x.id===+f.avion?'on':''}" data-act="m" data-k="avion" data-v="${x.id}">${x.id===+f.avion?'✓ ':''}${x.mat}</button>`).join('')}</div></div></div>
+  <div class="card" style="box-shadow:none"><span class="lbl">3 · Qué verá a partir de ahora</span><div class="acc" style="margin-top:6px">
+   <div class="opt"><span class="box"></span><span><b>Escuela</b><span class="sm">Se le quita. Su expediente queda guardado y lo sigues viendo tú.</span></span></div>
+   <div class="opt on"><span class="box">✓</span><span><b>Mi logbook</b><span class="sm">Con toda su formación ya anotada.</span></span></div>
+   <button class="opt ${f.reservas?'on':''}" data-act="m" data-k="reservas" data-v="${f.reservas?'':'1'}" style="text-align:left;cursor:pointer"><span class="box">${f.reservas?'✓':''}</span><span><b>Reservas de aviones del club: ${A(f.avion).mat}</b><span class="sm">${f.reservas?'Con '+hmTxt(Math.max(0,s))+'. Vuela suelto: lo marcas después en su ficha.':'Sin reservas: solo logbook.'}</span></span></button></div></div>
+  <div class="two"><button class="btn ghost" data-act="cerrar">Cancelar</button><button class="btn" style="background:var(--ok)" data-act="confirmar-pasar">Pasar a piloto</button></div>`;
+}
+/* ---------- vista del alumno que ya es piloto (resultado del paso) ---------- */
+function vPiloto(){
+  const u=me(),lb=u.logbook||[],tot=lb.reduce((s,v)=>s+v.min,0),s=x=>lb.filter(v=>v.tipo===x).reduce((a,v)=>a+v.min,0);
+  let h=topBar(S.parte==='reservas'?'Aeroclub · Reservas':'Mi logbook')+`<div class="parte">${(u.reservasClub?[['logbook','Mi logbook'],['reservas','Reservas del club']]:[['logbook','Mi logbook']]).map(([k,t])=>`<button class="${(S.parte==='reservas'?'reservas':'logbook')===k?'on':''}" data-act="parte" data-v="${k}">${t}</button>`).join('')}</div><div class="wrap">`;
+  if(S.parte==='reservas'&&u.reservasClub){h+=`<div class="msg info">En la app real aquí está la parte de Reservas que ya tenéis.</div><div class="card"><span class="lbl">Mis horas</span><div class="row" style="align-items:end;margin-top:6px"><div><div class="sm"><b style="color:var(--ink)">${A(u.reservasClub.avion).mat}</b> · ${esc(A(u.reservasClub.avion).modelo)}</div><div class="big ${u.reservasClub.min<0?'neg':''}">${hmTxt(u.reservasClub.min)}</div></div><span class="chip ok">Pasadas de la escuela</span></div></div>`;return h+'</div>'}
+  h+=`<div class="msg ok">🎉 ¡Enhorabuena, ${esc(nombre1(u.nombre))}! Ya eres piloto. Tu formación está en tu logbook.</div>
+  <div class="row"><h2>Logbook ULM</h2><span class="sm" style="font-family:var(--f-mono)">${esc(u.al.licencia||'')}</span></div>
+  <div class="tl"><div>Total<b>${hm(tot)}</b></div><div>Doble mando<b>${hm(s('dm'))}</b></div><div>Solo<b>${hm(s('solo'))}</b></div><div>Vuelos<b>${lb.length}</b></div></div>
+  <div class="card">${lb.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(v=>{const d=new Date(v.fecha+'T12:00');return `<div class="fl"><div class="d">${d.getDate()}<br>${MESES[d.getMonth()].slice(0,3)}<br>${v.fecha.slice(2,4)}</div><div><b>${A(v.avion).mat} · ${+v.leccion?'L'+v.leccion:'Práctica'}</b> ${typ(v.tipo)}<div class="sm">${v.tipo==='examen'?'Examinador '+esc(v.examinador):(v.tipo==='solo'?'Instructor en tierra ':'Instructor ')+esc(UN(v.instructor).nombre)} · ${v.tomas} toma${+v.tomas===1?'':'s'}</div></div><b>${hm(v.min)}</b></div>`}).join('')}</div>`;
+  return h+'</div>';
+}
+function vOtroAdmin(){return topBar('Aeroclub · Reservas','<button class="pill on">Administrador</button>')+`<div class="wrap"><div class="atabs chips"><button disabled>Resumen</button><button disabled>Logbook</button><button disabled>Pilotos y horas</button><button disabled>Aviones</button><button disabled>Descargas</button></div>
+  <div class="card"><h3>${esc(me().nombre)} · administrador del club</h3><p class="sm" style="margin-top:6px">Como no eres la cuenta principal ni instructor, <b>no ves la pestaña Escuela</b>: ni sus alumnos, ni sus horas, ni el botón para pasar a piloto. Todo lo demás de la app (reservas, aviones, pilotos…) lo sigues gestionando igual que ahora.</p></div>
+  <div class="msg info">Para probarlo, entra como «Aeroclub», abre «Instructores» y marca a ${esc(nombre1(me().nombre))} como instructor: entonces verá la Escuela con sus alumnos.</div></div>`}
+
+/* =====================================================================
+   PINTAR
+   ===================================================================== */
+function render(){
+  const u=me();let h=demoBar();
+  if(!u)h+=vLogin();
+  else if(u.rol==='alumno'&&ES_ALUMNO)h+=vAlumno();
+  else if(u.rol==='principal'||ES_PRINCIPAL)h+=vPrincipal();
+  else if(u.instructor)h+=vInstructor();
+  else h+='<p class="cargando">No tienes acceso a la escuela.</p>';
+  if(S.modal)h+=`<div class="modal" data-act="fondo"><div data-stop="1">${{clase:modalClase,alta:modalAlta,instructores:modalInstructores,pasar:modalPasar}[S.modal.kind]()}</div></div>`;
+  if(S.toast)h+=`<div class="toast">${esc(S.toast)}</div>`;
+  document.body.dataset.tema='verde';
+  const y=window.scrollY,app=document.getElementById('app');app.innerHTML=h;
+  if(render.keep)window.scrollTo(0,y);render.keep=false;
+}
+
+/* ---------- acciones ---------- */
+const act={
+ _entrar:e=>{S.user=+e.dataset.id;S.toast='';try{sessionStorage.setItem(KEY+'_u',S.user)}catch(x){}Object.assign(S,{view:'inicio',parte:'escuela',sel:null,vsel:null,f:null,modal:null,tab:'Progreso',ftab:'Vuelo'});if(me().rol==='alumno'&&me().al.estado==='piloto')S.parte='logbook';render();window.scrollTo(0,0)},
+ salir:()=>{S.modal=null;try{API.signOut()}catch(x){}setTimeout(()=>location.replace('index.html'),300)},
+ _reset:()=>{if(S.confirm!=='reset'){S.confirm='reset';return toast('Pulsa otra vez «Reiniciar datos» para volver a los datos de ejemplo.')}S.confirm=null;DB=semilla();save();S.user=null;S.modal=null;try{sessionStorage.removeItem(KEY+'_u')}catch(x){}toast('Datos de ejemplo restaurados.')},
+ view:e=>{S.view=e.dataset.v;S.sel=null;S.vsel=null;S.nota=null;S.edit=null;render();window.scrollTo(0,0)},
+ parte:e=>{const v=e.dataset.v;if(v==='escuela'){S.view='inicio';S.sel=null;S.vsel=null;render();window.scrollTo(0,0);return}irA(v)},
+ ficha:e=>{S.sel=+e.dataset.id;S.vsel=null;S.edit=null;S.tab=esPrincipal()?'Datos':'Progreso';if(me().instructor&&me().rol!=='principal')S.view='alumnos';render();window.scrollTo(0,0)},
+ 'cerrar-ficha':()=>{S.sel=null;S.vsel=null;render();window.scrollTo(0,0)},
+ tab:e=>{S.tab=e.dataset.v;S.vsel=null;render.keep=true;render()},
+ ftab:e=>{S.ftab=e.dataset.v;render.keep=true;render()},
+ 'ver-vuelo':e=>{S.vsel=+e.dataset.id;S.nota=null;render();window.scrollTo(0,0)},
+ 'cerrar-vuelo':()=>{S.vsel=null;S.nota=null;render();window.scrollTo(0,0)},
+ f:e=>{S.f[e.dataset.k]=e.dataset.v;if(e.dataset.k==='avion')S.f.llegada='';render.keep=true;render()},
+ 'guardar-vuelo':()=>{const f=S.f,e=errVuelo();if(e.length)return toast(e[0]);const a=A(f.avion),ll=parseHoro(f.llegada,A(f.avion));
+   const v={id:nid(),alumno:f.al,instructor:+f.instructor,examinador:f.tipo==='examen'?f.examinador.trim():'',avion:+f.avion,tipo:f.tipo,leccion:+f.leccion,fecha:today(),hora:f.hora,salida:f.salida.trim()||'Igualada-Òdena',destino:f.destino.trim()||'Igualada-Òdena',horoSal:a.horo,horoLle:ll,min:ll-a.horo,tomas:+f.tomas,nota:null,creado:today()};
+   v.clase=f.clase||null;DB.vuelos.push(v);a.horo=ll;save();S.f=null;S.view='diario';
+   toast('Vuelo guardado: '+hmTxt(v.min)+'. Te quedan '+hmTxt(saldo(v.alumno))+'. '+(v.tipo==='examen'?'¡Suerte con el resultado!':v.tipo==='dm'?UN(v.instructor).nombre+' ya lo tiene en su logbook.':UN(v.instructor).nombre+' lo revisará.'));window.scrollTo(0,0)},
+ grado:e=>{S.nota.g[+e.dataset.i]=+e.dataset.v;render.keep=true;render()},
+ nres:e=>{S.nota.res=e.dataset.v;render.keep=true;render()},
+ 'guardar-nota':e=>{const v=DB.vuelos.find(x=>x.id===+e.dataset.id),N=S.nota;if(N.g.some(g=>!g))return toast('Puntúa todos los ejercicios (1 a 4).');
+   const ll=parseHoro(N.lle,A(v.avion));if(ll===null||ll<=v.horoSal)return toast('Revisa el horómetro de llegada (mayor que '+horoTxt(v.horoSal,A(v.avion))+').');
+   if(ll!==v.horoLle){const dif=ll-v.horoLle,a=A(v.avion);if(a.horo===v.horoLle)a.horo=ll;v.horoLle=ll;v.min=ll-v.horoSal;N.cor=dif}
+   v.nota={g:N.g.slice(),res:N.res,com:N.com.trim(),prox:N.prox.trim(),por:S.user,fecha:today()};
+   const p=DB.progreso[v.alumno]=DB.progreso[v.alumno]||{};if(!v.leccion){}else if(N.res==='ok')p[v.leccion]='ok';else if(p[v.leccion]!=='ok')p[v.leccion]=N.res==='rep'?'pr':'pr';
+   save();S.vsel=null;S.nota=null;toast('Nota guardada. '+UN(v.alumno).nombre+' ya la puede ver.'+(N.cor?' Horómetro corregido.':''));window.scrollTo(0,0)},
+ lec:e=>{const al=+e.dataset.al,n=+e.dataset.n,p=DB.progreso[al]=DB.progreso[al]||{};p[n]=p[n]===e.dataset.v?'':e.dataset.v;save();render.keep=true;render()},
+ teo:e=>{const al=+e.dataset.al,i=+e.dataset.i,x=parseFloat(String(document.getElementById('tn-'+al+'-'+i).value).replace(',','.'));if(!(x>=0&&x<=10))return toast('Pon una nota de 0 a 10.');(DB.teorico[al]=DB.teorico[al]||{})[TEORICO[i]]=x;save();render.keep=true;toast(TEORICO[i]+': '+String(x).replace('.',','))},
+ 'add-com':e=>{const al=+e.dataset.al,t=document.getElementById('com').value.trim();if(!t)return toast('Escribe el comentario.');DB.comentarios.push({id:nid(),alumno:al,por:S.user,fecha:today(),txt:t});save();render.keep=true;toast('Comentario enviado a '+nombre1(UN(al).nombre)+'.')},
+ 'add-paquete':e=>{const al=+e.dataset.al,h=parseFloat(String(document.getElementById('ph').value).replace(',','.')),f=document.getElementById('pf').value||today();if(!(h>0&&h<=50))return toast('Indica las horas del paquete.');DB.paquetes.push({id:nid(),alumno:al,min:Math.round(h*60),fecha:f,por:S.user});save();render.keep=true;toast('Paquete de '+hmTxt(h*60)+' añadido. Le quedan '+hmTxt(saldo(al))+'.')},
+ 'add-ajuste':e=>{const al=+e.dataset.al,m=parseInt(document.getElementById('ajm').value,10),t=document.getElementById('ajt').value.trim();if(!m||!t)return toast('Indica los minutos (con signo) y el motivo.');DB.ajustes.push({id:nid(),alumno:al,min:m,motivo:t,fecha:today(),por:S.user});save();render.keep=true;toast('Ajuste guardado.')},
+ 'dar-suelta':e=>{const al=+e.dataset.al,a=U(al),f1=PROGRAMA[0].lecciones.every(([n])=>estadoLec(al,n)==='ok'),ok=f1&&estadoLec(al,11)==='ok'&&a.al.medico>=today();const mo=document.getElementById('sm');
+   if(!ok&&!(mo&&mo.value.trim()))return toast('Faltan requisitos: escribe el motivo para darla igualmente.');
+   a.al.suelta={avion:+document.getElementById('sa').value,desde:document.getElementById('sd').value||today(),cond:document.getElementById('sc').value.trim(),por:S.user,motivo:mo?mo.value.trim():''};save();render.keep=true;toast('Suelta concedida a '+a.nombre+' en el '+A(a.al.suelta.avion).mat+'.')},
+ 'quitar-suelta':e=>{const al=+e.dataset.al;if(S.confirm!=='qs'+al){S.confirm='qs'+al;render.keep=true;return render()}S.confirm=null;U(al).al.suelta=null;save();render.keep=true;toast('Suelta retirada.')},
+ 'nueva-clase':()=>{S.modal={kind:'clase',alumno:S.sel||0,leccion:0,avion:(DB.aviones[0]||{}).id,fecha:addDays(today(),1),desde:'10:00',hasta:'11:30'};if(S.modal.alumno)S.modal.leccion=proxLeccion(S.modal.alumno).n;render()},
+ 'guardar-clase':()=>{const f=S.modal;if(errClase())return;const al=+f.alumno;DB.clases.push({id:nid(),alumno:al,instructor:esPrincipal()?U(al).al.instructor:S.user,avion:+f.avion,leccion:String(f.leccion)==='0'?0:+(f.leccion||proxLeccion(al).n),fecha:f.fecha,desde:f.desde,hasta:f.hasta});save();S.modal=null;toast('Clase reservada para '+UN(al).nombre+'. La verá en su Inicio.')},
+ 'cancelar-clase':e=>{const id=+e.dataset.id;if(S.confirm!=='cc'+id){S.confirm='cc'+id;render.keep=true;return render()}S.confirm=null;DB.clases=DB.clases.filter(c=>c.id!==id);save();render.keep=true;toast('Clase cancelada.')},
+ m:e=>{S.modal[e.dataset.k]=e.dataset.v;render.keep=true;render()},
+ alta:()=>{S.modal={kind:'alta',nombre:'',email:'',instructor:esInstructor()&&!esPrincipal()?S.user:(instructores()[0]?instructores()[0].id:0),curso:'ULM · MAF',paq:'10',poblacion:'Igualada',cp:'08700',medicoClase:'LAPL'};render()},
+ 'guardar-alta':()=>{const f=S.modal,req=[['nombre','el nombre'],['dni','el DNI'],['nacimiento','la fecha de nacimiento'],['telefono','el teléfono'],['email','el correo'],['direccion','la dirección'],['cp','el código postal'],['poblacion','la población'],['emergNombre','el contacto de emergencia'],['emergTel','el teléfono de emergencia'],['medicoClase','la clase del médico'],['medicoEmision','la emisión del médico'],['medico','la caducidad del médico'],['matricula','el nº de matrícula']];
+   const fx=req.filter(([k])=>!String(f[k]||'').trim());if(fx.length)return toast('Falta '+fx.map(x=>x[1]).join(', ')+'.');
+   if(!/^\S+@\S+\.\S+$/.test(f.email.trim()))return toast('El correo no es válido.');if(DB.usuarios.some(u=>(u.email||'').toLowerCase()===f.email.trim().toLowerCase()))return toast('Ya hay alguien con ese correo.');
+   if(edad(f.nacimiento)<16)return toast('Para ser alumno piloto hacen falta 16 años.');if(f.medico<today())return toast('El certificado médico está caducado.');if(!+f.instructor)return toast('Primero nombra algún instructor.');
+   const id=nid(),al={instructor:esPrincipal()?+f.instructor:S.user,curso:f.curso,inicio:today(),estado:'formacion',suelta:null};['dni','nacimiento','telefono','direccion','cp','poblacion','emergNombre','emergTel','medicoClase','medicoEmision','medico','matricula'].forEach(k=>al[k]=String(f[k]).trim());
+   DB.usuarios.push({id,nombre:f.nombre.trim(),email:f.email.trim(),rol:'alumno',al});
+   DB.usuarios[DB.usuarios.length-1].activo=true;DB.progreso[id]={};DB.teorico[id]={};
+   if(f.paq)DB.paquetes.push({id:nid(),alumno:id,min:600,fecha:today(),por:S.user});const em=f.email.trim().toLowerCase(),nom=f.nombre.trim();
+   save([{op:'set',col:'cuentas',id:em,data:{email:em,usuario_id:id,rol:'socio',activo:true,reservas:false,escuela:'alumno'}}]).then(r=>{if(!r.ok)return;S.modal=null;render();
+     return API.crearCuenta(em).then(est=>toast(nom+' dado de alta como alumno de '+UN(+f.instructor).nombre+'. Le hemos enviado un correo a '+em+' para crear su contraseña.'),e=>toast(nom+' está dado de alta, pero no se ha podido enviar el correo ('+(e.code||'error')+').'))})},
+ baja:e=>{const al=+e.dataset.al;if(S.confirm!=='bj'+al){S.confirm='bj'+al;render.keep=true;return render()}S.confirm=null;const a=U(al),m=document.getElementById('bm');a.al.estado='baja';a.al.bajaFecha=today();a.al.bajaMotivo=m?m.value.trim():'';a.activo=false;
+   DB.clases=DB.clases.filter(c=>!(c.alumno===al&&c.fecha>=today()));const em=String(a.email||'').toLowerCase();
+   save(em?[{op:'set',col:'cuentas',id:em,data:{email:em,usuario_id:al,rol:'socio',activo:false,reservas:false,escuela:'alumno'}}]:[]);render.keep=true;toast(a.nombre+' dado de baja. La escuela conserva su expediente.')},
+ reactivar:e=>{const a=U(+e.dataset.al);a.al.estado='formacion';delete a.al.bajaFecha;delete a.al.bajaMotivo;a.activo=true;const em=String(a.email||'').toLowerCase();
+   save(em?[{op:'set',col:'cuentas',id:em,data:{email:em,usuario_id:a.id,rol:'socio',activo:true,reservas:false,escuela:'alumno'}}]:[]);render.keep=true;toast(a.nombre+' vuelve a estar en formación.')},
+ 'borrar-alumno':e=>{const al=+e.dataset.al;if(!puedeGestionar(al))return;if(DB.vuelos.some(v=>v.alumno===al))return toast('Tiene vuelos anotados en los aviones del club: no se puede borrar. Dale de baja: la escuela conserva su expediente.');if(S.confirm!=='ba'+al){S.confirm='ba'+al;render.keep=true;return render()}S.confirm=null;const n=UN(al).nombre;
+   const emB=String((U(al)||{}).email||'').toLowerCase();DB.usuarios=DB.usuarios.filter(u=>u.id!==al);['vuelos','paquetes','ajustes','clases','comentarios'].forEach(k=>DB[k]=DB[k].filter(x=>x.alumno!==al));delete DB.progreso[al];delete DB.teorico[al];
+   save(emB?[{op:'delete',col:'cuentas',id:emB}]:[]);S.sel=null;S.vsel=null;toast(n+' borrado de la escuela.');window.scrollTo(0,0)},
+ 'editar-ficha':e=>{S.edit=+e.dataset.al;S.dd={};render.keep=true;render()},
+ 'cancelar-edit':()=>{S.edit=null;render.keep=true;render()},
+ 'guardar-ficha':e=>{const al=+e.dataset.al,u=U(al),d=S.dd||{};if(Object.keys(d).length===0){S.edit=null;render.keep=true;return render()}
+   for(const [k,v] of Object.entries(d)){if(['nombre','email'].includes(k))u[k]=v.trim();else u.al[k]=v.trim()}
+   S.edit=null;S.dd={};save();render.keep=true;toast('Ficha actualizada.')},
+ 'copiar-ficha':e=>{const u=U(+e.dataset.al),t=CAMPOS.map(([k,l,ty])=>l+': '+(ty==='date'?fNum(valCampo(u,k)):valCampo(u,k)||'—')).join('\n')+'\nInstructor: '+UN(u.al.instructor).nombre;
+   const ok=()=>toast('Ficha copiada. Pégala en un documento para imprimirla o archivarla.');try{navigator.clipboard.writeText('Ficha del alumno · Aeroclub Igualada-Òdena-Anoia\n'+t).then(ok,()=>toast('No se ha podido copiar en este navegador.'))}catch(x){toast('No se ha podido copiar en este navegador.')}},
+ wk:e=>{S.wk=addDays(S.wk||lunes(today()),+e.dataset.v);render.keep=true;render()},
+ wkhoy:()=>{S.wk=null;render.keep=true;render()},
+ pins:e=>{S.pins=e.dataset.v;render.keep=true;render()},
+ instructores:()=>{S.modal={kind:'instructores'};render()},
+ 'tog-instr':e=>{const u=U(+e.dataset.id);if(u.instructor&&alumnos().some(a=>a.al.instructor===u.id))return toast(u.nombre+' tiene alumnos asignados: pásalos antes a otro instructor (en la ficha de cada alumno).');u.instructor=!u.instructor;save();render.keep=true;render()},
+ pasar:e=>{const al=+e.dataset.al;S.modal={kind:'pasar',al,fecha:'',licencia:'',avion:(DB.aviones[0]||{}).id,reservas:'1'};render()},
+ 'confirmar-pasar':()=>{const f=S.modal,a=U(f.al);if(!String(f.licencia).trim())return toast('Escribe el número de licencia.');
+   const sal=saldo(a.id),res=!!f.reservas,av=+f.avion,em=String(a.email||'').toLowerCase(),ou=raw('usuarios').get(String(a.id))||{};
+   a.al.estado='piloto';a.al.licencia=f.licencia.trim();a.al.examen=f.fecha;a.al.suelta=null;
+   DB.clases=DB.clases.filter(c=>!(c.alumno===a.id&&c.fecha>=today()));
+   const ex=[{op:'set',col:'cuentas',id:em,data:{email:em,usuario_id:a.id,rol:'socio',activo:true,reservas:res}},
+     {op:'set',col:'usuarios',id:String(a.id),data:Object.assign({},ou,{alumno:false,reservas:res,aviones:res&&av?[av]:[],activo:true})},
+     {op:'set',col:'usuarios_privado',id:String(a.id),data:{id:a.id,licencia_num:a.al.licencia,medico_caduca:a.al.medico||null,licencia_caduca:null}}];
+   if(res&&av&&sal>0)ex.push({op:'set',col:'bonos',id:String(nid()),data:{id:0,usuario_id:a.id,avion_id:av,minutos:sal,fecha:today(),tipo:'adicional',nota:'Horas pasadas de la escuela ('+hmTxt(sal)+')'}});
+   if(res&&av&&sal<0)ex.push({op:'set',col:'ajustes',id:String(nid()),data:{id:0,usuario_id:a.id,avion_id:av,minutos:sal,motivo:'Saldo negativo de la escuela',fecha:today()}});
+   ex.forEach(o=>{if(o.data.id===0)o.data.id=+o.id});
+   save(ex).then(r=>{if(!r.ok)return;S.modal=null;S.sel=null;render();toast(a.nombre+' ya es piloto: sus '+DB.vuelos.filter(v=>v.alumno===a.id).length+' vuelos de escuela aparecen en su logbook'+(res&&av&&sal>0?' y tiene '+hmTxt(sal)+' en el '+A(av).mat:'')+'.')})},
+ cerrar:()=>{S.modal=null;render()},
+ fondo:e=>{if(e.target.dataset.act==='fondo'){S.modal=null;render()}}
+};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t||t.disabled)return;if(t.dataset.act==='fondo'&&e.target!==t)return;
+  if(S.confirm&&!['quitar-suelta','cancelar-clase','reset','borrar-alumno','baja'].includes(t.dataset.act))S.confirm=null;e.preventDefault();const f=act[t.dataset.act];if(f)f(t)});
+document.addEventListener('input',e=>{const t=e.target;
+  if(t.dataset.f&&S.f){S.f[t.dataset.f]=t.value;const p=document.getElementById('prev');if(p)p.innerHTML=prevVuelo();const b=document.getElementById('gv');if(b)b.disabled=errVuelo().length>0}
+  if(t.dataset.n&&S.nota)S.nota[t.dataset.n]=t.value;
+  if(t.dataset.d!==undefined){(S.dd=S.dd||{})[t.dataset.d]=t.value}
+  if(t.dataset.m&&S.modal&&t.tagName==='INPUT'&&t.type!=='date')S.modal[t.dataset.m]=t.value});
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.f&&S.f){S.f[t.dataset.f]=t.value;if(t.tagName==='SELECT'){render.keep=true;render()}}
+  if(t.dataset.m&&S.modal){S.modal[t.dataset.m]=t.value;if(t.dataset.m==='alumno')S.modal.leccion=proxLeccion(+t.value).n;if(t.tagName==='SELECT'||t.type==='date'){render.keep=true;render()}}
+  if(t.dataset.d!==undefined){(S.dd=S.dd||{})[t.dataset.d]=t.value}
+  if(t.dataset.instr){const a=U(+t.dataset.instr);a.al.instructor=+t.value;save();toast(a.nombre+' pasa a ser alumno de '+UN(+t.value).nombre+'.')}});
+arrancar();
+})();
+
+</script></body></html>

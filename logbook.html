@@ -50,7 +50,7 @@ textarea.inp{min-height:70px;resize:vertical}
 .books{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:10px}
 .wmk{position:fixed;left:50%;top:54%;width:min(86vw,420px);transform:translate(-50%,-50%);opacity:var(--wm);filter:var(--wmf);pointer-events:none;z-index:0}
 main>*{position:relative;z-index:1}main>.wmk{position:fixed;z-index:0}
-html[data-theme=light]{--bg:#F4F6F9;--surface:#fff;--card:#fff;--fg:#14181F;--muted:#5B6673;--line:#D6DCE4;--accent:#2F6FCB;--accent-fg:#fff;--warn:#FFF1D2;--warnfg:#7A4E00;--bad:#C4372B;--ok:#1F8A52;--book:rgba(255,255,255,.88);--pop:#fff;--sheet:#fff;--toast:#14181F;--toastfg:#fff;--dlg:#fff;--wm:.07;--wmf:invert(1);color-scheme:light}
+html[data-theme=light]{--bg:#F5EEE2;--surface:#fff;--card:#fff;--fg:#2E2414;--muted:#6F6047;--line:#E2D2B8;--accent:#9A6526;--accent-fg:#fff;--warn:#FFF1D2;--warnfg:#7A4E00;--bad:#C4372B;--ok:#1F8A52;--book:rgba(255,255,255,.92);--pop:#fff;--sheet:#fff;--toast:#14181F;--toastfg:#fff;--dlg:#fff;--wm:.07;--wmf:invert(1);color-scheme:light}
 html[data-theme=light] .tg{color:var(--fg);background:color-mix(in srgb,var(--c) 24%,transparent)}
 .gauge{display:flex;justify-content:center;margin:2px 0 16px;position:relative;z-index:1}.gauge[data-a]{cursor:pointer}.gauge svg{width:132px;height:132px}.gauge.w svg{width:min(100%,340px);height:auto}
 .book{display:flex;gap:12px;align-items:center;border:1px solid var(--line);background:var(--book);border-radius:14px;padding:12px;width:100%;text-align:left}
@@ -182,7 +182,9 @@ const FIREBASE_CONFIG={apiKey:"AIzaSyDk3br7XYabu5-SbPgq1IN77vVg-Ji7luo",authDoma
 const FB_VERSION='10.12.2';
 const LOCK='<svg viewBox="0 0 24 24" width="11" height="11" style="vertical-align:-1px" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>';
 let DB=blank();
-let API=null,CUENTA=null,UIDS=null,YO=null,ACCESO_RES=false,LISTO=false,RAWS=null;
+let API=null,CUENTA=null,UIDS=null,YO=null,ACCESO_RES=false,LISTO=false,RAWS=null,ES_PRINCIPAL=false;
+const verEscuela=()=>!VISTA&&(ES_PRINCIPAL||!!(USR.get(String(YO))||{}).instructor);
+function irEscuela(){try{localStorage.setItem('aeroclub_parte_'+String(CUENTA&&CUENTA.email||'').toLowerCase(),'escuela')}catch(e){}location.href='escuela.html'}
 const VISTA=(()=>{try{return new URLSearchParams(location.search).get('socio')}catch(e){return null}})();
 let BASES=new Map();const OVL=new Map(),RAWF=new Map(),CLUB_V=new Map(),CLUB_I=new Map(),USR=new Map();let CLUB_AV=[];const PEND=new Set();let UNSUB=[];
 const CLASE_TIPO={'Ultraligero':'ULM MAF','Autogiro':'ULM AG','Helicóptero':'ULM H','Avión':'PPL'};
@@ -204,8 +206,12 @@ function vueloClub(v,rol){
  const f={id:'club_'+v.id+(rol==='ins'?'_i':''),club:true,book:b.id,date:v.fecha,reg:av.matricula||'',dep:normPlace(v.aerodromo_salida||''),depT:v.hora_salida||'',arr:normPlace(v.aerodromo_destino||''),arrT:v.hora_llegada||'',
   min:Math.max(0,(v.horometro_llegada_min||0)-(v.horometro_salida_min||0)),man:true,ldD:+v.tomas||0,ldN:0,pic:DB.owner||'',crew:'',dual:false,withInst:false,inst:'',rem,ifr:'',night:'',multi:false,me:false,trD:'',trT:'',trM:'',
   horo:av.matricula?[v.horometro_salida_min,v.horometro_llegada_min,av.tipo_horometro]:null};
+ const lec=v.esc_leccion?'L'+v.esc_leccion+(v.esc_leccion_txt?' '+v.esc_leccion_txt:''):'';
+ if(lec)f.rem=[f.rem,lec].filter(Boolean).join(' · ');
  if(rol==='ins'){f.fn='INS';f.crew=nombreDe(v.piloto_id)+' (alumno)'}
- else if(v.tipo==='escuela'){f.dual=true;f.withInst=true;f.inst=nombreDe(v.safety_pilot_id)}
+ else if(v.tipo==='escuela'&&v.esc_modo==='solo'){f.crew='Solo';f.rem=[f.rem,'Solo supervisado · instructor en tierra: '+nombreDe(v.esc_instructor)].filter(Boolean).join(' · ')}
+ else if(v.tipo==='escuela'&&v.esc_modo==='examen'){f.crew=(v.esc_examinador||'Examinador')+' (examinador)';f.rem=[f.rem,'Vuelo de examen'].filter(Boolean).join(' · ')}
+ else if(v.tipo==='escuela'){f.dual=true;f.withInst=true;f.inst=nombreDe(v.safety_pilot_id||v.esc_instructor)}
  else if(v.safety_pilot_id)f.crew=nombreDe(v.safety_pilot_id)+' (safety pilot)';
  else f.crew=v.acompanante?'Acompañado':'Solo';
  return f}
@@ -219,7 +225,7 @@ function rebuild(){
  const nb=DB.books.length;
  BASES=new Map();const conCambios=f=>{BASES.set(f.id,JSON.parse(JSON.stringify(f)));const o=OVL.get(f.id);if(o&&o.campos)Object.assign(f,JSON.parse(JSON.stringify(o.campos)));return f};
  CLUB_V.forEach(v=>{if(v.estado!=='anulado')DB.flights.push(conCambios(vueloClub(v,'pil')))});
- CLUB_I.forEach(v=>{if(v.estado!=='anulado'&&v.tipo==='escuela'&&v.piloto_id!==YO)DB.flights.push(conCambios(vueloClub(v,'ins')))});
+ CLUB_I.forEach(v=>{if(v.estado!=='anulado'&&v.tipo==='escuela'&&v.esc_modo!=='solo'&&v.esc_modo!=='examen'&&v.piloto_id!==YO)DB.flights.push(conCambios(vueloClub(v,'ins')))});
  DB.books=DB.books.filter(b=>!(b.club&&!DB.flights.some(f=>f.book===b.id)&&DB.books.some(x=>x!==b&&x.type===b.type)));
  if(DB.books.length!==nb)cambio=true;
  return cambio}
@@ -288,7 +294,9 @@ async function arrancar(){
   const em=email.toLowerCase();let c=null;
   try{c=await API.getDoc('cuentas',em);if(c)localStorage.setItem('aeroclub_cuenta_'+em,JSON.stringify(c))}catch(e){try{c=JSON.parse(localStorage.getItem('aeroclub_cuenta_'+em)||'null')}catch(x){}}
   if(!c||c.activo===false){location.replace('index.html');return}
+  if(c.escuela==='alumno'&&!VISTA){location.replace('escuela.html');return}
   CUENTA=c;
+  try{const cf=await API.getDoc('config','app');ES_PRINCIPAL=c.rol==='admin'&&!!(cf&&cf.por&&String(cf.por).toLowerCase()===em)}catch(e){}
   if(VISTA){if(c.rol!=='admin'){location.replace('logbook.html');return}UIDS=String(VISTA);YO=+VISTA;ACCESO_RES=false}
   else{UIDS=String(c.usuario_id);YO=c.usuario_id;ACCESO_RES=c.rol==='admin'||c.reservas!==false;try{localStorage.setItem('aeroclub_parte_'+em,'logbook')}catch(e){}}
   escuchar()});
@@ -330,7 +338,7 @@ const IC={
  fl:'M3 12l2-2 7-7 7 7 2 2M5 10v10h14V10',se:'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4-4',su:'M4 20V10M10 20V4M16 20v-7M22 20H2',ex:'M12 3v12m0 0l-4-4m4 4l4-4M4 17v4h16v-4'};
 function nav(){const t=[['flights','Vuelos',IC.fl],['search','Buscar',IC.se],['summary','Resumen',IC.su],['export','Exportar',IC.ex]];return'<nav class="nav">'+t.map(x=>'<button data-a="tab" data-v="'+x[0]+'" class="'+(S.tab===x[0]?'on':'')+'"><svg viewBox="0 0 24 24"><path d="'+x[2]+'"/></svg>'+x[1]+'</button>').join('')+'</nav>'}
 function clk(){const d=new Date();return'<span class="sc"></span><span class="sc"></span><span class="sc"></span><span class="sc"></span><div><i>LCL</i><b>'+nowHM()+'</b></div><div><i>UTC</i><b>'+pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+'Z</b></div>'}
-function hdr(title,left,right){return'<header class="top">'+(left||'')+'<h1>'+esc(title)+'</h1>'+(right||'')+'<div class="clk" id="clk">'+clk()+'</div></header>'+(VISTA?'<div class="parte" style="align-items:center"><span style="flex:3;color:var(--muted);font-size:14px">'+LOCK+' Logbook de <b style="color:var(--fg)">'+esc(DB.owner||nombreDe(YO)||'socio')+'</b> · de baja · solo lectura</span><button data-a="ir-res">Volver</button></div>':ACCESO_RES?'<div class="parte"><button class="on">Mi logbook</button><button data-a="ir-res">Reservas del club</button></div>':'')}
+function hdr(title,left,right){return'<header class="top">'+(left||'')+'<h1>'+esc(title)+'</h1>'+(right||'')+'<div class="clk" id="clk">'+clk()+'</div></header>'+(VISTA?'<div class="parte" style="align-items:center"><span style="flex:3;color:var(--muted);font-size:14px">'+LOCK+' Logbook de <b style="color:var(--fg)">'+esc(DB.owner||nombreDe(YO)||'socio')+'</b> · de baja · solo lectura</span><button data-a="ir-res">Volver</button></div>':(ACCESO_RES||verEscuela())?'<div class="parte"><button class="on">Mi logbook</button>'+(ACCESO_RES?'<button data-a="ir-res">'+(verEscuela()?'Reservas':'Reservas del club')+'</button>':'')+(verEscuela()?'<button data-a="ir-esc">Escuela</button>':'')+'</div>':'')}
 setInterval(()=>{const e=$('#clk');if(e)e.innerHTML=clk()},5000);
 
 /* ---------- pantallas ---------- */
@@ -678,7 +686,7 @@ document.addEventListener('click',async e=>{
  case'back':if(S.screen==='settings'){if(dirty()){const r=await ask('Cambios sin guardar','Has cambiado cosas en Ajustes y no las has guardado.',[{t:'Guardar y salir',v:'s',cls:''},{t:'Salir sin guardar',v:'d'},{t:'Seguir editando',v:null}]);if(!r)return;if(r==='s'){commitSettings();return}}S.set=null;S.screen=S.prev==='book'?'book':'books'}else if(S.screen==='form'){S.screen='book';S.editing=false}else if(S.screen==='book')S.screen='books';else S.screen='books';render();window.scrollTo(0,0);break;
  case'settings':openSettings();break;
  case'setsave':commitSettings();break;
- case'ir-res':irReservas();break;
+ case'ir-res':irReservas();break;case'ir-esc':irEscuela();break;
  case'logout':if(await ask('Cerrar sesión','Para volver a entrar necesitarás tu correo y contraseña.',[{t:'Cerrar sesión',v:true,cls:''},{t:'Cancelar',v:false}]))API.signOut();break;
  case'clubreset':{const base=BASES.get(S.f&&S.f.id);if(!base)break;const i=DB.flights.findIndex(x=>x.id===base.id);if(i>=0)DB.flights[i]=JSON.parse(JSON.stringify(base));save();rebuild();S.screen='book';S.editing=false;toast('Vuelo devuelto a los datos del club');render();break}
  case'implocal':{const d=viejoLocal();if(!d)break;const mg=(k,key)=>{const st=new Set((DB[k]||[]).map(x=>x[key]));(d[k]||[]).forEach(x=>{if(!st.has(x[key]))DB[k].push(x)})};
