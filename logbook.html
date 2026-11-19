@@ -722,7 +722,7 @@ document.addEventListener('click',async e=>{
  case'gmode':S.set.gauge.mode=v;render();break;
  case'gid':S.set.gauge.id=+v;S.set.gauge.mode='fixed';render();break;
  case'gtap':S.set.gauge.tap=v==='1';render();break;
- case'gcyc':S.gOff=(S.gOff||0)+1;render();break;
+ case'gcyc':{const g=DB.gauge||{};if(g.mode==='daily'){S.gOff=(S.gOff||0)+1}else{DB.gauge=Object.assign({},g,{mode:'fixed',id:(g.id||1)%11+1});S.gOff=0;save()}render();break}
  case'addair':{const r=$('#ar').value.toUpperCase().trim();if(!r){toast('Escribe la matrícula');return}if(S.set.aircraft.some(x=>x.reg===r)){toast('Ya está en la lista');return}S.set.aircraft.push({reg:r,model:$('#am').value.trim(),eng:S.eng==='multi'?'multi':'mono'});S.eng='mono';$('#ar').value='';$('#am').value='';render();break}
  case'delair':S.set.aircraft.splice(+v,1);render();break;
  case'fav':{const i=S.set.favs.indexOf(v);if(i>=0)S.set.favs.splice(i,1);else S.set.favs.push(v);const sc=window.scrollY;render();window.scrollTo(0,sc);break}
