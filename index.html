@@ -198,8 +198,10 @@ function odo(av,min){
   const h=String(Math.floor(min/60)).padStart(5,'0'),m=pad(min%60);
   return '<span class="odo" aria-label="Horómetro '+fmtHoro(av,min)+'">'+h.split('').map(c=>'<span>'+c+'</span>').join('')+'<i class="u">h</i>'+m.split('').map(c=>'<span class="t">'+c+'</span>').join('')+'<i class="u">min</i></span>';
 }
-function picker(sel,u,disabled){
-  return `<div class="picker" role="radiogroup" aria-label="Avión">${avionesActivos().map(a=>`<button class="pick ${a.id===sel?'on':''}" role="radio" aria-checked="${a.id===sel}" data-act="pick-avion" data-id="${a.id}" ${disabled?'disabled':''}>
+function picker(sel,u,disabled,lista){
+  const l=lista||(u!=null?avionesPara(u):avionesActivos());if(sel!=null&&!l.some(a=>a.id===sel)&&A(sel))l.push(A(sel));
+  if(!l.length)return '<div class="msg warn">No tienes ningún avión asignado. Habla con un administrador.</div>';
+  return `<div class="picker" role="radiogroup" aria-label="Avión">${l.map(a=>`<button class="pick ${a.id===sel?'on':''}" role="radio" aria-checked="${a.id===sel}" data-act="pick-avion" data-id="${a.id}" ${disabled?'disabled':''}>
    ${fotoDe(a)?`<img src="${fotoDe(a)}" alt="${esc(a.modelo)} ${esc(a.matricula)}">`:'<span style="aspect-ratio:4/3;display:grid;place-items:center;background:var(--bg);color:var(--muted)">Sin foto</span>'}
    <span><b>${esc(a.matricula)}</b><small>${esc(a.modelo)} · ${esc(a.clase||'')}</small>${u?`<i style="color:${!necesitaSP(u,a.id)?'var(--ok)':'var(--sp)'}">${!necesitaSP(u,a.id)?'Vuelas suelto':'Con safety pilot'}</i>`:''}</span></button>`).join('')}</div>`;
 }
@@ -210,7 +212,7 @@ const ICON={perfil:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7
 const FIREBASE_CONFIG={apiKey:"AIzaSyDk3br7XYabu5-SbPgq1IN77vVg-Ji7luo",authDomain:"reservas-aeroclub.firebaseapp.com",projectId:"reservas-aeroclub",storageBucket:"reservas-aeroclub.firebasestorage.app",messagingSenderId:"240046395578",appId:"1:240046395578:web:7f5382ddf1501635683283"};
 const FB_VERSION='10.12.2';
 const COLS=['aviones','reservas','bloqueos','vuelos','bonos','ajustes','historial','calibraciones'];
-const U_PUB=['id','nombre','email','rol','sp','idioma','activo','ultimo_vuelo_ms','reservas'],U_PRIV=['id','licencia_caduca','medico_caduca','licencia_num'],U_ADM=['id','recencia_meses'];
+const U_PUB=['id','nombre','email','rol','sp','idioma','activo','ultimo_vuelo_ms','reservas','aviones'],U_PRIV=['id','licencia_caduca','medico_caduca','licencia_num'],U_ADM=['id','recencia_meses'];
 const vacio=()=>({aviones:[],usuarios:[],suelto:[],reservas:[],bloqueos:[],vuelos:[],bonos:[],ajustes:[],historial:[],calibraciones:[],registro:[],estadisticas:[]});
 let DB=vacio();
 const RAW={};let API=null,UNSUB=[],CUENTA=null,PENDIENTES=new Set();
@@ -282,11 +284,11 @@ function regDescribir(col,o,n){
      if(!d.length)d.push(c.join(', '));
      {const t=d.join(', ');return ['Vuelos',t.charAt(0).toUpperCase()+t.slice(1)+' · vuelo '+vue(n)]}}
   case 'bonos':
-    if(!o)return ['Horas',(n.tipo==='mantenimiento'?'Paquete de mantenimiento de '+fmtMin(n.minutos)+' (caduca el '+fmtCorto(n.caduca)+' '+String(n.caduca).slice(0,4)+')':'Paquete adicional de '+fmtMin(n.minutos))+' añadido a '+nombre(n.usuario_id)+' (pagado el '+fmtCorto(n.fecha)+')'];
+    if(!o)return ['Horas',(n.tipo==='mantenimiento'?'Paquete de mantenimiento de '+fmtMin(n.minutos)+' (caduca el '+fmtCorto(n.caduca)+' '+String(n.caduca).slice(0,4)+')':'Paquete adicional de '+fmtMin(n.minutos))+(n.avion_id!=null?' del '+mat(n.avion_id):'')+' añadido a '+nombre(n.usuario_id)+' (pagado el '+fmtCorto(n.fecha)+')'];
     if(!n)return ['Horas','Paquete de '+fmtMin(o.minutos)+' quitado a '+nombre(o.usuario_id)];
     return ['Horas',cambio('caduca')?'Caducidad del paquete de mantenimiento de '+nombre(n.usuario_id)+' cambiada al '+fmtCorto(n.caduca)+' '+String(n.caduca).slice(0,4):'Paquete de '+nombre(n.usuario_id)+' modificado ('+camb().join(', ')+')'];
   case 'ajustes':
-    if(!o)return ['Horas','Ajuste de '+(n.minutos>0?'+':'−')+fmtMin(Math.abs(n.minutos))+' a '+nombre(n.usuario_id)+(n.motivo?': '+n.motivo:'')];
+    if(!o)return ['Horas','Ajuste de '+(n.minutos>0?'+':'−')+fmtMin(Math.abs(n.minutos))+(n.avion_id!=null?' en el '+mat(n.avion_id):'')+' a '+nombre(n.usuario_id)+(n.motivo?': '+n.motivo:'')];
     if(!n)return ['Horas','Ajuste de '+fmtMin(o.minutos)+' a '+nombre(o.usuario_id)+' eliminado'];
     return ['Horas','Ajuste de '+nombre(n.usuario_id)+' modificado'];
   case 'usuarios':
@@ -294,7 +296,8 @@ function regDescribir(col,o,n){
     if(!n)return ['Pilotos','Ficha de '+o.nombre+' eliminada'];
     {const c=camb().filter(k=>k!=='ultimo_vuelo_ms');if(!c.length)return null;
      if(cambio('activo'))return ['Pilotos',(n.activo===false?'Baja de ':'Reactivado ')+n.nombre];
-     const t={nombre:'nombre',email:'correo',rol:'rol',sp:'safety pilot',idioma:'idioma'};
+     if(cambio('aviones'))return ['Pilotos','Aviones de '+n.nombre+': '+((n.aviones||[]).map(mat).join(', ')||'ninguno')];
+     const t={nombre:'nombre',email:'correo',rol:'rol',sp:'safety pilot',idioma:'idioma',reservas:'acceso a reservas'};
      return ['Pilotos','Ficha de '+n.nombre+' modificada: '+c.map(k=>(t[k]||k)+(k==='rol'?' → '+(n.rol==='admin'?'administrador':'socio'):k==='sp'?(n.sp?' sí':' no'):'')).join(', ')]}
   case 'usuarios_privado':
     if(!o||!n)return null;
@@ -415,11 +418,23 @@ const esMant=b=>b.tipo?b.tipo==='mantenimiento':b.minutos===360;
 const cadMant=f=>{const y=+f.slice(0,4),m=+f.slice(5,7);return (m>=4?y+1:y)+'-04-30'};
 const caducaDe=b=>esMant(b)?(b.caduca||cadMant(b.fecha)):null;
 const temporadaDe=b=>{const c=caducaDe(b);return c?(+c.slice(0,4)-1)+'-'+c.slice(2,4):''};
-function cuentaHoras(uid){
+/* Cada avión lleva sus propios paquetes y su propio saldo. Los avisos «solo 10 h» (a.paquetes==='solo10') no tienen paquete de mantenimiento.
+   Datos antiguos sin avion_id se asignan al primer avión del club. */
+const avDefecto=()=>{const l=DB.aviones.slice().sort((a,b)=>a.id-b.id);return l.length?l[0].id:null};
+const avDe=x=>x.avion_id!=null?x.avion_id:avDefecto();
+const conMant=aid=>{const a=DB.aviones.find(x=>x.id===aid);return !a||a.paquetes!=='solo10'};
+function avionesPara(uid){const u=U(uid),act=avionesActivos();if(!u||!Array.isArray(u.aviones))return act;return act.filter(a=>u.aviones.includes(a.id))}
+const puedeVolar=(uid,aid)=>avionesPara(uid).some(a=>a.id===aid);
+function avionesConHoras(uid){const ids=new Set(avionesPara(uid).map(a=>a.id));
+  DB.bonos.filter(b=>b.usuario_id===uid).forEach(b=>ids.add(avDe(b)));DB.ajustes.filter(a=>a.usuario_id===uid).forEach(a=>ids.add(avDe(a)));
+  DB.vuelos.filter(v=>v.piloto_id===uid&&v.estado!=='anulado'&&v.descuenta_bono).forEach(v=>ids.add(v.avion_id));
+  return DB.aviones.filter(a=>ids.has(a.id)).sort((a,b)=>(a.activo===false)-(b.activo===false)||a.matricula.localeCompare(b.matricula))}
+function cuentaHoras(uid,aid){
+  if(aid==null){const all={mov:[],pools:[],deuda:0};avionesConHoras(uid).forEach(a=>{const c=cuentaHoras(uid,a.id);all.mov.push(...c.mov.map(m=>({...m,avion_id:a.id})));all.pools.push(...c.pools);all.deuda+=c.deuda});return all}
   const hoy=today(),ev=[];
-  DB.bonos.filter(b=>b.usuario_id===uid).forEach(b=>{ev.push({k:b.fecha+'0'+b.fecha,t:'bono',b});const c=caducaDe(b);if(c&&c<hoy)ev.push({k:c+'9',t:'cad',b})});
-  DB.vuelos.filter(v=>v.piloto_id===uid&&v.estado!=='anulado'&&v.descuenta_bono).forEach(v=>ev.push({k:v.fecha+'2'+v.hora_salida,t:'gasto',fecha:v.fecha,orden:v.hora_salida,min:minutosVuelo(v),txt:'Vuelo '+A(v.avion_id).matricula+' · '+TIPO_TXT[v.tipo],tipo:'vuelo'}));
-  DB.ajustes.filter(a=>a.usuario_id===uid).forEach(a=>ev.push({k:a.fecha+'1',t:a.minutos>=0?'abono':'gasto',fecha:a.fecha,orden:'1',min:Math.abs(a.minutos),txt:'Ajuste: '+a.motivo,tipo:'ajuste',a}));
+  DB.bonos.filter(b=>b.usuario_id===uid&&avDe(b)===aid).forEach(b=>{ev.push({k:b.fecha+'0'+b.fecha,t:'bono',b});const c=caducaDe(b);if(c&&c<hoy)ev.push({k:c+'9',t:'cad',b})});
+  DB.vuelos.filter(v=>v.piloto_id===uid&&v.avion_id===aid&&v.estado!=='anulado'&&v.descuenta_bono).forEach(v=>ev.push({k:v.fecha+'2'+v.hora_salida,t:'gasto',fecha:v.fecha,orden:v.hora_salida,min:minutosVuelo(v),txt:'Vuelo '+A(v.avion_id).matricula+' · '+TIPO_TXT[v.tipo],tipo:'vuelo'}));
+  DB.ajustes.filter(a=>a.usuario_id===uid&&avDe(a)===aid).forEach(a=>ev.push({k:a.fecha+'1',t:a.minutos>=0?'abono':'gasto',fecha:a.fecha,orden:'1',min:Math.abs(a.minutos),txt:'Ajuste: '+a.motivo,tipo:'ajuste',a}));
   ev.sort((x,y)=>x.k.localeCompare(y.k));
   const pools=[],mov=[];let deuda=0;
   const cobrar=p=>{if(deuda>0&&p.quedan>0){const g=Math.min(p.quedan,deuda);p.quedan-=g;deuda-=g}};
@@ -434,10 +449,12 @@ function cuentaHoras(uid){
   }
   return {mov,pools,deuda};
 }
-const movimientos=uid=>cuentaHoras(uid).mov.slice().sort((a,b)=>(a.fecha+a.orden).localeCompare(b.fecha+b.orden));
-const saldo=uid=>cuentaHoras(uid).mov.reduce((s,m)=>s+m.min,0);
-function bonosFIFO(uid){const c=cuentaHoras(uid);return DB.bonos.filter(b=>b.usuario_id===uid).sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(b=>{const p=c.pools.find(x=>x.id===b.id)||{};return {...b,quedan:p.quedan??b.minutos,mant:esMant(b),caduca:caducaDe(b),caducado:!!p.caducado,perdido:p.perdido||0}})}
-const mantVigente=uid=>DB.bonos.some(b=>b.usuario_id===uid&&esMant(b)&&b.fecha<=today()&&caducaDe(b)>=today());
+const movimientos=(uid,aid)=>cuentaHoras(uid,aid).mov.slice().sort((a,b)=>(a.fecha+a.orden).localeCompare(b.fecha+b.orden));
+const saldo=(uid,aid)=>cuentaHoras(uid,aid).mov.reduce((s,m)=>s+m.min,0);
+const saldosDe=uid=>avionesConHoras(uid).map(a=>({a,s:saldo(uid,a.id)}));
+const saldosTxt=uid=>saldosDe(uid).map(x=>x.a.matricula+' '+fmtMin(x.s)).join(' · ')||'—';
+function bonosFIFO(uid,aid){const c=cuentaHoras(uid,aid);return DB.bonos.filter(b=>b.usuario_id===uid&&(aid==null||avDe(b)===aid)).sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(b=>{const p=c.pools.find(x=>x.id===b.id)||{};return {...b,quedan:p.quedan??b.minutos,mant:esMant(b),caduca:caducaDe(b),caducado:!!p.caducado,perdido:p.perdido||0}})}
+const mantVigente=(uid,aid)=>DB.bonos.some(b=>b.usuario_id===uid&&avDe(b)===aid&&esMant(b)&&b.fecha<=today()&&caducaDe(b)>=today());
 const solapa=(a1,b1,a2,b2)=>a1<b2&&a2<b1;
 const reservasActivas=()=>DB.reservas.filter(r=>r.estado==='activa');
 function ocupado(uid,ini,fin,excluir){
@@ -501,9 +518,10 @@ function nav(){
 /* Inicio */
 function diasHasta(f){return Math.round((new Date(f+'T12:00')-new Date(today()+'T12:00'))/864e5)}
 function avisosDe(u){
-  const a=[],s=saldo(u.id);
-  if(s<=0)a.push(['bad',(s<0?'Saldo en negativo ('+fmtMin(s)+')':'Sin saldo')+'. No puedes reservar hasta renovar el bono.']);
-  else if(s<120)a.push(['warn','Te quedan '+fmtMin(s)+'. Piensa en renovar el bono.']);
+  const a=[];
+  if(u.reservas!==false)avionesPara(u.id).forEach(av=>{const s=saldo(u.id,av.id);
+    if(s<=0)a.push(['bad',av.matricula+': '+(s<0?'saldo en negativo ('+fmtMin(s)+')':'sin saldo')+'. No puedes reservarlo hasta comprar un paquete.']);
+    else if(s<120)a.push(['warn',av.matricula+': te quedan '+fmtMin(s)+'. Piensa en comprar otro paquete.'])});
   [['Licencia de piloto',u.licencia_caduca],['Certificado médico',u.medico_caduca]].forEach(([n,f])=>{
     if(!f)return;const dd=diasHasta(f);
     if(dd<0)a.push(['bad',n+' caducado desde el '+fmtCorto(f)+'. Renuévalo antes de volar.']);
@@ -547,11 +565,10 @@ function relojATC(){const v=rkVals();
   return `<div class="rk" role="img" aria-label="Hora local y hora UTC"><span class="sc"></span><span class="sc"></span><span class="sc"></span><span class="sc"></span><div><i>LCL</i><b class="rk-lt">${v.lt}</b></div><div><i>UTC</i><b class="rk-ut">${v.ut}</b></div></div>`}
 setInterval(()=>{if(!document.querySelector('.rk-lt'))return;const v=rkVals();document.querySelectorAll('.rk-lt').forEach(x=>x.textContent=v.lt);document.querySelectorAll('.rk-ut').forEach(x=>x.textContent=v.ut)},5000);
 function vInicio(){
-  const u=me(),s=saldo(u.id),t=today(),now=t+'T'+pad(new Date().getHours())+':'+pad(new Date().getMinutes());
+  const u=me(),t=today(),now=t+'T'+pad(new Date().getHours())+':'+pad(new Date().getMinutes());
   const pendSP=reservasActivas().filter(r=>r.safety_pilot_id===u.id&&r.sp_estado==='pendiente'&&r.fin>=now).sort((a,b)=>a.inicio.localeCompare(b.inicio));
   const mias=reservasActivas().filter(r=>r.usuario_id===u.id&&r.fin>=now).sort((a,b)=>a.inicio.localeCompare(b.inicio));
   const comoSP=reservasActivas().filter(r=>r.safety_pilot_id===u.id&&r.sp_estado==='aceptado'&&r.fin>=now).sort((a,b)=>a.inicio.localeCompare(b.inicio));
-  const bonos=bonosFIFO(u.id),ultimo=bonos.filter(b=>b.quedan>0)[0]||bonos[bonos.length-1];
   const avisos=avisosDe(u);
   let h=`<div class="saludo"><div><span class="lbl">${fmtDia(t)}</span><h2>Hola, ${esc(u.nombre.split(' ')[0])}</h2></div>${relojATC()}</div>`;
   if(avisos.length)h+=`<div class="card" style="display:grid;gap:6px"><span class="lbl">Avisos</span>${avisos.map(([c,txt])=>`<div class="msg ${c}">${c==='bad'?'⛔':'⚠'} ${esc(txt)}</div>`).join('')}</div>`;
@@ -559,8 +576,9 @@ function vInicio(){
   pendSP.forEach(r=>{h+=`<div class="card" style="border-color:var(--sp)"><div class="row"><span class="chip sp">Te piden de safety pilot</span><span class="sm">Pendiente</span></div>
    <div style="margin-top:6px"><b>${fmtDia(r.inicio.slice(0,10))} · ${r.inicio.slice(11)}–${r.fin.slice(11)}</b><div class="sm">${esc(nombre(r.usuario_id))} · ${A(r.avion_id).matricula}</div></div>
    <div class="two" style="margin-top:8px"><button class="btn sm" data-act="sp-ok" data-id="${r.id}">Aceptar</button><button class="btn sm ghost" data-act="sp-no" data-id="${r.id}">No puedo</button></div></div>`});
-  h+=`<div class="card"><span class="lbl">Mis horas</span><div class="row" style="align-items:end;margin-top:4px"><div class="big ${s<0?'neg':''}">${fmtMin(s)}</div>${s<0?'<span class="chip bad">En negativo</span>':s<120?'<span class="chip warn">Queda poco</span>':'<span class="chip ok">Al día</span>'}</div>
-   ${s<120?'<div class="sm" style="margin-top:6px">Para comprar más horas, habla con un administrador.</div>':''}</div>`;
+  const sds=avionesPara(u.id).map(a=>({a,s:saldo(u.id,a.id)})),chipS=s=>s<0?'<span class="chip bad">En negativo</span>':s===0?'<span class="chip bad">Sin horas</span>':s<120?'<span class="chip warn">Queda poco</span>':'<span class="chip ok">Al día</span>';
+  h+=`<div class="card"><span class="lbl">Mis horas</span>${sds.length?sds.map(({a,s})=>`<div class="row hrs" style="align-items:end;margin-top:6px"><div><div class="sm"><b style="color:var(--ink)">${a.matricula}</b> · ${esc(a.modelo)}</div><div class="big ${s<0?'neg':''}">${fmtMin(s)}</div></div>${chipS(s)}</div>`).join(''):'<p class="sm" style="margin-top:6px">No tienes aviones asignados.</p>'}
+   ${sds.some(x=>x.s<120)?'<div class="sm" style="margin-top:6px">Cada avión tiene sus propias horas. Para comprar más, habla con un administrador.</div>':''}</div>`;
   h+=`<div class="card"><div class="row"><span class="lbl">Mis reservas</span><button class="btn sm ghost" data-act="nueva-reserva">+ Nueva reserva</button></div>`;
   if(!mias.length)h+=`<p class="sm" style="margin-top:6px">No tienes reservas próximas.</p>`;
   mias.forEach(r=>{const sp=r.safety_pilot_id?(r.sp_estado==='aceptado'?`<span class="chip ok">SP ${esc(nombre(r.safety_pilot_id))}</span>`:r.sp_estado==='pendiente'?`<span class="chip warn">SP ${esc(nombre(r.safety_pilot_id))} · pendiente</span>`:`<span class="chip bad">SP rechazado</span>`):'';
@@ -594,15 +612,16 @@ function vPerfil(){
 const DIAS_C=['dom','lun','mar','mié','jue','vie','sáb'];
 const PCOL=['#1769c8','#7a3fc4','#0e8a7e','#c2410c','#a3366b','#5b6b00'];
 function vSemana(admin){
-  const ini=S.wk||today(),u=me(),aa=avionesActivos(),col=id=>PCOL[Math.max(0,aa.findIndex(a=>a.id===id))%PCOL.length];
+  const ini=S.wk||today(),u=me(),aa=admin?avionesActivos():avionesPara(u.id),col=id=>PCOL[Math.max(0,aa.findIndex(a=>a.id===id))%PCOL.length];
   const fin=addDays(ini,6),dd=s=>{const d=new Date(s+'T12:00');return d.getDate()+' '+MESES[d.getMonth()].slice(0,3)};
   let h=`<div class="days"><button class="btn sm ghost" data-act="wk" data-v="-1">‹</button><b>${dd(ini)} – ${dd(fin)}</b><span style="display:flex;gap:6px">${ini!==today()?'<button class="btn sm ghost" data-act="wkhoy">Hoy</button>':''}<button class="btn sm ghost" data-act="wk" data-v="1">›</button></span></div>`;
   h+=`<div class="sm" style="display:flex;flex-wrap:wrap;gap:4px 12px">${aa.map(a=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col(a.id)};vertical-align:-1px"></span> ${a.matricula}</span>`).join('')}</div>${admin?'':'<div class="sm">Verde: mis reservas · Naranja: voy de SP · Toca un día para verlo en detalle</div>'}`;
   h+='<div class="wkwrap"><div class="wk">';
   for(let i=0;i<7;i++){
     const d=addDays(ini,i),dt=new Date(d+'T12:00');
-    const rs=reservasActivas().filter(r=>r.inicio.slice(0,10)===d).sort((a,b)=>a.inicio.localeCompare(b.inicio));
-    const bs=DB.bloqueos.filter(b=>b.inicio.slice(0,10)<=d&&b.fin.slice(0,10)>=d);
+    const veo=r=>admin||aa.some(a=>a.id===r.avion_id)||r.usuario_id===u.id||r.safety_pilot_id===u.id;
+    const rs=reservasActivas().filter(r=>r.inicio.slice(0,10)===d&&veo(r)).sort((a,b)=>a.inicio.localeCompare(b.inicio));
+    const bs=DB.bloqueos.filter(b=>b.inicio.slice(0,10)<=d&&b.fin.slice(0,10)>=d&&(admin||aa.some(a=>a.id===b.avion_id)));
     h+=`<div class="wkd ${d===today()?'hoy':''}"><button class="wkh" data-act="wkdia" data-v="${d}">${DIAS_C[dt.getDay()]} ${dt.getDate()}<span>${rs.length?rs.length+' res.':''}</span></button>`;
     h+=bs.map(b=>`<div class="wkr blocked" style="--pc:${col(b.avion_id)}"><span class="m">${A(b.avion_id).matricula}</span> bloqueado<br>${esc(b.motivo)}</div>`).join('');
     h+=rs.map(r=>{const c=admin?'':r.usuario_id===u.id?'me':r.safety_pilot_id===u.id?'sp':'';
@@ -622,7 +641,9 @@ function vCalendario(){
   <div class="days"><button class="btn sm ghost" data-act="dia" data-v="-1">‹</button><b>${fmtDia(d)}${d===today()?' · hoy':''}</b><button class="btn sm ghost" data-act="dia" data-v="1">›</button></div>
   <div class="sm">Verde: mis reservas · Naranja: voy de safety pilot · Rayado: avión bloqueado</div>`;
   const pos=(s)=>Math.max(0,Math.min(100,(hm2min(s.slice(11))-420)/840*100));
-  avionesActivos().forEach(a=>{
+  const misAv=avionesPara(u.id);
+  if(!misAv.length)h+='<div class="msg warn">No tienes ningún avión asignado. Habla con un administrador.</div>';
+  misAv.forEach(a=>{
     const rs=reservasActivas().filter(r=>r.avion_id===a.id&&r.inicio.slice(0,10)===d);
     const bs=DB.bloqueos.filter(b=>b.avion_id===a.id&&b.inicio.slice(0,10)<=d&&b.fin.slice(0,10)>=d);
     h+=`<div style="display:grid;gap:3px"><b style="font-size:.85rem">${a.matricula} <span class="sm">${esc(a.modelo)}</span></b><div class="track">
@@ -630,7 +651,7 @@ function vCalendario(){
     ${rs.map(r=>{const c=r.usuario_id===u.id?'me':r.safety_pilot_id===u.id?'sp':'';const l=pos(r.inicio),w=pos(r.fin)-l;return `<div class="blk ${c}" style="left:${l}%;width:${w}%">${esc(nombre(r.usuario_id))}${r.safety_pilot_id?'<br>SP '+esc(nombre(r.safety_pilot_id)):''}</div>`}).join('')}
     </div></div>`});
   h+=`<div class="scale"><span>07</span><span>09</span><span>11</span><span>13</span><span>15</span><span>17</span><span>19</span><span>21</span></div>`;
-  const lista=reservasActivas().filter(r=>r.inicio.slice(0,10)===d).sort((a,b)=>a.inicio.localeCompare(b.inicio));
+  const lista=reservasActivas().filter(r=>r.inicio.slice(0,10)===d&&(misAv.some(a=>a.id===r.avion_id)||r.usuario_id===u.id||r.safety_pilot_id===u.id)).sort((a,b)=>a.inicio.localeCompare(b.inicio));
   h+=`<div class="card"><span class="lbl">Reservas del día</span>${lista.length?lista.map(r=>`<div class="line"><span>${r.inicio.slice(11)}–${r.fin.slice(11)} · <b>${A(r.avion_id).matricula}</b></span><span class="sm">${esc(nombre(r.usuario_id))}${r.safety_pilot_id?` · SP ${esc(nombre(r.safety_pilot_id))}${r.sp_estado!=='aceptado'?' ('+r.sp_estado+')':''}`:''}${hechaTxt(r)}${(r.usuario_id===u.id||isAdmin())&&r.fin>=today()+'T00:00'?`<button class="btn sm ghost" style="margin-top:4px" data-act="editar-reserva" data-id="${r.id}">Modificar</button>`:''}</span></div>`).join(''):'<p class="sm" style="margin-top:6px">Sin reservas.</p>'}</div>`;
   return h;
 }
@@ -640,8 +661,8 @@ function formReserva(){
   const nSP=necesitaSP(u.id,a.id)||!!f.forzarSP;
   let err='';if(f.hasta<=f.desde)err='La hora de fin debe ser posterior a la de inicio.';else err=conflictoAvion(a.id,ini,fin,ex);
   if(!err&&ocupado(u.id,ini,fin,ex))err=(u.id===S.user?'Ya tienes':u.nombre+' ya tiene')+' otra reserva (o va de safety pilot) a esa hora.';
-  const sinSaldo=!f.excluir&&!f.editar&&saldo(u.id)<=0;
-  if(sinSaldo)return `<h3>Nueva reserva</h3><div class="msg bad">⛔ No tienes saldo (${fmtMin(saldo(u.id))}). Para reservar necesitas renovar el bono: habla con un administrador.</div><button class="btn ghost" data-act="cerrar">Cerrar</button>`;
+  const sA=saldo(u.id,a.id),rOrig=f.editar?DB.reservas.find(x=>x.id===f.editar):null,sinSaldo=!f.excluir&&(!rOrig||rOrig.avion_id!==a.id)&&sA<=0;
+  if(sinSaldo)err=(u.id===S.user?'No tienes':u.nombre+' no tiene')+' horas en el '+a.matricula+' ('+fmtMin(sA)+'). Para reservarlo hace falta comprar un paquete de este avión: habla con un administrador.';
   const sps=nSP?spDisponibles(u.id,a.id,ini,fin,ex):[];
   if(nSP&&f.sp&&!sps.some(s=>s.id===+f.sp))f.sp='';
   const horas=[];for(let m=7*60;m<=21*60;m+=60)horas.push(min2hm(m));
@@ -651,7 +672,7 @@ function formReserva(){
   <div class="field"><label>Día</label><input type="date" data-f="fecha" value="${f.fecha}" min="${today()}" ${f.excluir?'disabled':''}></div>
   <div class="two"><div class="field"><label>Desde</label><select data-f="desde" ${f.excluir?'disabled':''}>${horas.map(x=>`<option ${x===f.desde?'selected':''}>${x}</option>`).join('')}</select></div>
   <div class="field"><label>Hasta</label><select data-f="hasta" ${f.excluir?'disabled':''}>${horas.map(x=>`<option ${x===f.hasta?'selected':''}>${x}</option>`).join('')}</select></div></div>
-  ${err?`<div class="msg bad">${esc(err)}</div>`:'<div class="msg ok">✓ Sin conflictos con otras reservas.</div>'}
+  ${err?`<div class="msg bad">${sinSaldo?'⛔ ':''}${esc(err)}</div>`:'<div class="msg ok">✓ Sin conflictos con otras reservas.</div>'}
   ${nSP?`<div class="msg warn">Para esta reserva en ${a.matricula} necesitas safety pilot.</div>
    <div class="field"><label>Safety pilot</label><select data-f="sp"><option value="">— Elige —</option>${sps.map(s=>`<option value="${s.id}" ${+f.sp===s.id?'selected':''}>${esc(s.nombre)}</option>`).join('')}</select>
    <span class="sm">${sps.length?'Solo aparecen quienes vuelan suelto en este avión y están libres a esa hora.':'Nadie disponible a esa hora: prueba otro horario.'}</span></div>
@@ -726,7 +747,7 @@ function leerVuelo(){
 }
 function prevVuelo(){
   const el=document.getElementById('prev');if(!el)return;
-  const {a,esperado,sal,min,errs}=leerVuelo(),f=S.form,pid=+f.piloto,s=saldo(pid),quien=pid===S.user?'Mi saldo':'Saldo de '+nombre(pid);
+  const {a,esperado,sal,min,errs}=leerVuelo(),f=S.form,pid=+f.piloto,s=saldo(pid,a.id),quien=(pid===S.user?'Mi saldo':'Saldo de '+nombre(pid))+' en el '+a.matricula;
   const show=(id,txt)=>{const e=document.getElementById(id);if(!e)return;const v=parseHoro(a,txt);e.textContent=String(txt||'').trim()?(v===null?'No se entiende la lectura.':'Leído: '+fmtHoro(a,v)+(a.tipo_horometro==='decimas'?' ('+fmtMin(v)+')':'')):'';e.style.color=v===null?'var(--bad)':'var(--ok)'};
   show('illeg',f.llegada);show('isal',f.salidaTxt);
   const hll=document.getElementById('hll');if(hll)hll.value=(min>0&&f.hora)?min2hm(hm2min(f.hora)+min):'—';
@@ -811,8 +832,9 @@ function aRegistro(){
 function aResumen(){
   const rev=DB.vuelos.filter(v=>v.estado==='por_revisar');
   const apr=DB.vuelos.filter(v=>v.aprobacion==='pendiente'&&v.estado!=='anulado');
-  const sinMant=usuariosActivos().filter(u=>u.reservas!==false&&(u.rol!=='admin'||DB.bonos.some(b=>b.usuario_id===u.id))&&!mantVigente(u.id));
-  const negs=DB.usuarios.map(u=>({u,s:saldo(u.id)})).filter(x=>x.s<0);
+  const sinMant=[];usuariosActivos().filter(u=>u.reservas!==false).forEach(u=>avionesPara(u.id).filter(a=>conMant(a.id)).forEach(a=>{
+    if((u.rol!=='admin'||DB.bonos.some(b=>b.usuario_id===u.id&&avDe(b)===a.id))&&!mantVigente(u.id,a.id))sinMant.push({u,a})}));
+  const negs=[];DB.usuarios.forEach(u=>saldosDe(u.id).forEach(({a,s})=>{if(s<0)negs.push({u,a,s})}));
   const now=today()+'T00:00';
   const spp=reservasActivas().filter(r=>r.safety_pilot_id&&r.sp_estado!=='aceptado'&&r.inicio>=now);
   const revs=avionesActivos().filter(a=>a.proxima_revision_min>0).map(a=>({a,f:a.proxima_revision_min-horoActual(a.id)})).filter(x=>x.f<30*60);
@@ -828,8 +850,8 @@ function aResumen(){
   <div class="cols"><div class="card"><h3 style="margin-bottom:6px">Atención</h3>
    ${rev.map(v=>`<div class="line"><span><span class="chip bad">Revisar</span> ${A(v.avion_id).matricula} · ${esc(nombre(v.piloto_id))} · ${fmtCorto(v.fecha)}<br><span class="sm">«${esc(v.nota_piloto)}»</span></span><button class="btn sm" data-act="editar-vuelo" data-id="${v.id}">Revisar</button></div>`).join('')}
    ${apr.map(v=>`<div class="line"><span><span class="chip warn">Divulgación</span> ${A(v.avion_id).matricula} · ${esc(nombre(v.piloto_id))} · ${fmtCorto(v.fecha)} · ${fmtMin(minutosVuelo(v))}</span><span style="display:flex;gap:6px"><button class="btn sm" data-act="div-aprobar" data-id="${v.id}">Aprobar</button><button class="btn sm ghost" data-act="div-rechazar" data-id="${v.id}">${S.confirm==='dr'+v.id?'¿Pasar a normal?':'Rechazar'}</button></span></div>`).join('')}
-   ${sinMant.map(u=>`<div class="line"><span><span class="chip warn">Mantenimiento</span> ${esc(u.nombre)}</span><span class="sm">sin paquete de mantenimiento esta temporada</span></div>`).join('')}
-   ${negs.map(x=>`<div class="line"><span><span class="chip bad">Saldo</span> ${esc(x.u.nombre)}</span><b class="neg">${fmtMin(x.s)}</b></div>`).join('')}
+   ${sinMant.map(x=>`<div class="line"><span><span class="chip warn">Mantenimiento</span> ${esc(x.u.nombre)} · ${x.a.matricula}</span><span class="sm">sin paquete de mantenimiento esta temporada</span></div>`).join('')}
+   ${negs.map(x=>`<div class="line"><span><span class="chip bad">Saldo</span> ${esc(x.u.nombre)} · ${x.a.matricula}</span><b class="neg">${fmtMin(x.s)}</b></div>`).join('')}
    ${spp.map(r=>`<div class="line"><span><span class="chip warn">SP ${r.sp_estado}</span> ${esc(nombre(r.usuario_id))} · ${A(r.avion_id).matricula} · ${fmtCorto(r.inicio.slice(0,10))} ${r.inicio.slice(11)}</span><span class="sm">${esc(nombre(r.safety_pilot_id))}</span></div>`).join('')}
    ${revs.map(x=>`<div class="line"><span><span class="chip warn">Revisión</span> ${x.a.matricula} a ${fmtHoro(x.a,x.a.proxima_revision_min)}</span><span class="sm">faltan ${fmtMin(x.f)}</span></div>`).join('')}
    ${cad.map(c=>`<div class="line"><span><span class="chip ${c.dd<0?'bad':'warn'}">${c.n}</span> ${esc(c.u.nombre)}</span><span class="sm">${c.dd<0?'caducado el ':'caduca el '}${fmtCorto(c.f)}</span></div>`).join('')}
@@ -869,22 +891,22 @@ function modalVuelo(){
 }
 function aSocios(){
   const sel=S.sel?U(S.sel):null,act=usuariosActivos().length;
-  let h=`<div class="row"><h2>Pilotos · ${act} en activo</h2><button class="btn sm" data-act="alta">+ Alta de piloto</button></div><div class="cols"><div class="card scroll"><table><tr><th>Piloto</th><th>Rol</th><th>Suelto en</th><th class="n">Saldo</th><th></th></tr>
-  ${DB.usuarios.slice().sort((a,b)=>(a.activo===false)-(b.activo===false)).map(u=>{const s=saldo(u.id),baja=u.activo===false;return `<tr style="${baja?'opacity:.55':''}"><td><b>${esc(u.nombre)}</b>${u.sp?' <span class="chip sp">SP</span>':''}${u.recencia_meses?` <span class="chip warn" title="Exige safety pilot si no ha volado en ${u.recencia_meses} meses">${u.recencia_meses} m</span>`:''}${baja?' <span class="chip bad">De baja</span>':''}${u.reservas===false&&u.rol!=='admin'?' <span class="chip">Solo logbook</span>':''}<br><span class="sm">${esc(u.email)}</span></td><td>${u.rol==='admin'?'Admin':'Socio'}</td><td class="sm">${avionesActivos().filter(a=>esSuelto(u.id,a.id)).map(a=>a.matricula).join(', ')||'—'}</td><td class="n ${s<0?'neg':''}">${fmtMin(s)}<br><span class="sm">${s} min</span></td><td><button class="btn sm ${S.sel===u.id?'':'ghost'}" data-act="sel" data-id="${u.id}">Ver</button></td></tr>`}).join('')}</table></div>`;
+  let h=`<div class="row"><h2>Pilotos · ${act} en activo</h2><button class="btn sm" data-act="alta">+ Alta de piloto</button></div><div class="cols"><div class="card scroll"><table><tr><th>Piloto</th><th>Rol</th><th>Aviones</th><th class="n">Horas</th><th></th></tr>
+  ${DB.usuarios.slice().sort((a,b)=>(a.activo===false)-(b.activo===false)).map(u=>{const sds=saldosDe(u.id),baja=u.activo===false;return `<tr style="${baja?'opacity:.55':''}"><td><b>${esc(u.nombre)}</b>${u.sp?' <span class="chip sp">SP</span>':''}${u.recencia_meses?` <span class="chip warn" title="Exige safety pilot si no ha volado en ${u.recencia_meses} meses">${u.recencia_meses} m</span>`:''}${baja?' <span class="chip bad">De baja</span>':''}${u.reservas===false&&u.rol!=='admin'?' <span class="chip">Solo logbook</span>':''}<br><span class="sm">${esc(u.email)}</span></td><td>${u.rol==='admin'?'Admin':'Socio'}</td><td class="sm">${u.reservas===false&&u.rol!=='admin'?'—':avionesPara(u.id).map(a=>'<span style="white-space:nowrap">'+a.matricula+(esSuelto(u.id,a.id)?'':' <span title="Necesita safety pilot">(SP)</span>')+'</span>').join('<br>')||'<span class="chip warn">Ninguno</span>'}</td><td class="n">${sds.filter(x=>x.s!==0||DB.bonos.some(b=>b.usuario_id===u.id&&avDe(b)===x.a.id)).map(x=>`<span style="white-space:nowrap"><span class="sm">${x.a.matricula}</span> <span class="${x.s<0?'neg':''}">${fmtMin(x.s)}</span></span>`).join('<br>')||'—'}</td><td><button class="btn sm ${S.sel===u.id?'':'ghost'}" data-act="sel" data-id="${u.id}">Ver</button></td></tr>`}).join('')}</table></div>`;
   if(sel){
-    const s=saldo(sel.id),bonos=bonosFIFO(sel.id),mov=movimientos(sel.id).slice().reverse(),baja=sel.activo===false;
-    h+=`<div class="card" style="display:grid;gap:8px"><div class="row"><h3>${esc(sel.nombre)} ${baja?'<span class="chip bad">De baja</span>':''}</h3><b class="${s<0?'neg':''}" style="font:700 1.4rem var(--f-disp)">${fmtMin(s)}</b></div>
-    <div class="chips"><button class="${sel.rol==='admin'?'on':''}" data-act="tog-admin" data-id="${sel.id}">Administrador</button><button class="${sel.sp?'on':''}" data-act="tog-sp" data-id="${sel.id}">Safety pilot</button>${avionesActivos().map(a=>`<button class="${esSuelto(sel.id,a.id)?'on':''}" data-act="tog-suelto" data-id="${sel.id}" data-a="${a.id}">Suelto ${a.matricula}</button>`).join('')}</div>
+    const baja=sel.activo===false,misAv=avionesPara(sel.id);
+    h+=`<div class="card" style="display:grid;gap:8px"><div class="row"><h3>${esc(sel.nombre)} ${baja?'<span class="chip bad">De baja</span>':''}</h3><span class="sm" style="text-align:right">${saldosDe(sel.id).map(x=>`${x.a.matricula} <b class="${x.s<0?'neg':''}" style="font:700 1.15rem var(--f-disp);color:${x.s<0?'':'var(--ink)'}">${fmtMin(x.s)}</b>`).join('<br>')}</span></div>
+    <div class="chips"><button class="${sel.rol==='admin'?'on':''}" data-act="tog-admin" data-id="${sel.id}">Administrador</button><button class="${sel.sp?'on':''}" data-act="tog-sp" data-id="${sel.id}">Safety pilot</button></div>
+    <span class="lbl">Aviones que puede reservar y volar</span>
+    <div class="chips">${avionesActivos().map(a=>`<button class="${misAv.some(x=>x.id===a.id)?'on':''}" data-act="tog-av" data-id="${sel.id}" data-a="${a.id}">${misAv.some(x=>x.id===a.id)?'✓ ':''}${a.matricula}</button>`).join('')}</div>
+    <span class="sm">Solo verá estos aviones en Reservar y en Volar. Cada avión lleva sus propias horas.</span>
+    ${misAv.length?`<span class="lbl">Vuela suelto en <span style="text-transform:none">(si no, necesita safety pilot)</span></span><div class="chips">${misAv.map(a=>`<button class="${esSuelto(sel.id,a.id)?'on':''}" data-act="tog-suelto" data-id="${sel.id}" data-a="${a.id}">${esSuelto(sel.id,a.id)?'✓ ':''}Suelto ${a.matricula}</button>`).join('')}</div>`:''}
     <span class="lbl">Caducidades</span><div class="two"><div class="field"><label>Licencia de piloto</label><input type="date" data-doc="licencia_caduca" data-id="${sel.id}" value="${sel.licencia_caduca||''}"></div><div class="field"><label>Certificado médico</label><input type="date" data-doc="medico_caduca" data-id="${sel.id}" value="${sel.medico_caduca||''}"></div></div>
     <span class="lbl">Exigir safety pilot al reservar <span style="text-transform:none">(el piloto no ve este ajuste)</span></span>
     <div class="two"><select data-recencia="${sel.id}">${[['','Sin restricción'],['3','Si no ha volado en los últimos 3 meses'],['6','Si no ha volado en los últimos 6 meses']].map(([v,t])=>`<option value="${v}" ${String(sel.recencia_meses||'')===v?'selected':''}>${t}</option>`).join('')}</select>
     <span class="sm" style="align-self:center">Último vuelo: ${ultimoVuelo(sel.id)?fmtCorto(ultimoVuelo(sel.id))+' '+ultimoVuelo(sel.id).slice(0,4):'ninguno'}${sel.recencia_meses?(sinRecencia(sel.id)?' · <b style="color:var(--sp)">ahora necesita safety pilot</b>':' · ahora puede volar suelto'):''}</span></div>
-    <span class="lbl">Paquetes de horas <span style="text-transform:none">(se gasta primero el de mantenimiento; después los adicionales, del más antiguo al más nuevo)</span></span>${bonos.length?bonos.map(b=>`<div class="line"><span>${b.mant?`<span class="chip ${b.caducado?'':'warn'}">Mantenimiento ${temporadaDe(b)}</span> `:'<span class="chip">Adicional</span> '}${esc(b.nota)} · pagado el ${fmtCorto(b.fecha)} ${b.fecha.slice(0,4)}${b.mant?`<br><span class="sm">${b.caducado?'Caducó el '+fmtCorto(b.caduca)+' '+b.caduca.slice(0,4)+(b.perdido?' · se perdieron '+fmtMin(b.perdido):''):'Caduca el '}</span>${b.caducado?'':`<input type="date" data-bcad="${b.id}" value="${b.caduca}" style="width:auto;min-height:28px;padding:2px 6px;font-size:.8rem;margin-left:4px">`}`:''}</span><span class="sm">${b.caducado?'caducado':'quedan '+fmtMin(b.quedan)+' de '+fmtMin(b.minutos)} ${b.quedan===b.minutos&&!b.caducado?`<button class="btn sm danger" style="padding:2px 8px;margin-left:6px" data-act="quitar-bono" data-id="${b.id}" title="Quitar paquete añadido por error">${S.confirm==='b'+b.id?'¿Quitar?':'×'}</button>`:''}</span></div>`).join(''):'<p class="sm">Sin paquetes.</p>'}
-    <div class="three"><div class="field"><label>Añadir paquete</label><select id="bt"><option value="mantenimiento">Mantenimiento anual (caduca 30 abr)</option><option value="adicional">Horas adicionales (no caduca)</option></select></div><div class="field"><label>Horas</label><input id="bhrs" type="number" min="1" max="50" step="0.5" value="6"></div><div class="field"><label>Fecha de pago</label><input type="date" id="bf" value="${today()}"></div></div>
-    <button class="btn sm" data-act="add-bono" data-id="${sel.id}">Añadir paquete</button>
-    <div class="two"><input id="aj" placeholder="± minutos (ej. -30)" inputmode="numeric"><input id="ajm" placeholder="Motivo del ajuste"></div><button class="btn sm ghost" data-act="add-ajuste" data-id="${sel.id}">Ajuste manual</button>
+    ${avionesConHoras(sel.id).map(a=>bloqueHoras(sel,a)).join('')}
     <span class="lbl">Vuelos de ${esc(sel.nombre)}</span>${(()=>{const vs=DB.vuelos.filter(v=>v.piloto_id===sel.id&&v.estado!=='anulado').sort((a,b)=>(b.fecha+b.hora_salida).localeCompare(a.fecha+a.hora_salida));return vs.length?`<div class="sm">${vs.length} vuelo${vs.length===1?'':'s'} · ${fmtMin(vs.reduce((t,v)=>t+minutosVuelo(v),0))} en total</div>`+vs.slice(0,6).map(v=>`<div class="line"><span>${fmtCorto(v.fecha)} ${v.fecha.slice(0,4)} · ${A(v.avion_id).matricula} · ${chipTipo(v.tipo)}</span><span>${fmtMin(minutosVuelo(v))}</span></div>`).join('')+`<div class="row" style="justify-content:flex-start;gap:6px"><button class="btn sm ghost" data-act="ver-vuelos-piloto" data-id="${sel.id}">Ver todos en el logbook</button><button class="btn sm ghost" data-act="dl-pil-sel" data-id="${sel.id}">Descargar PDF</button></div>`:'<p class="sm">Sin vuelos.</p>'})()}
-    <span class="lbl">Movimientos</span>${mov.map(m=>`<div class="line"><span>${esc(m.txt)}<br><span class="sm">${fmtCorto(m.fecha)}</span></span><span class="${m.min<0?'neg':''}">${m.min>0?'+':''}${m.min} min</span></div>`).join('')||'<p class="sm">Sin movimientos.</p>'}
     ${baja?'':sel.rol==='admin'?'':`<span class="lbl">Aviones del club</span>${sel.reservas!==false
       ?`<button class="btn ghost" data-act="tog-reservas" data-id="${sel.id}">${S.confirm==='r'+sel.id?'Pulsa otra vez para confirmar':'Quitar acceso a los aviones del club'}</button><span class="sm">Para quien deja de volar los aviones del club (por ejemplo, porque se ha comprado el suyo). Ya no verá Reservar ni Volar y se cancelan sus reservas futuras. Sigue siendo socio y sigue usando su logbook.</span>`
       :`<div class="msg info">Solo logbook: no tiene acceso a los aviones del club.</div><button class="btn ghost" data-act="tog-reservas" data-id="${sel.id}">Devolver acceso a los aviones del club</button>`}`}
@@ -894,12 +916,23 @@ function aSocios(){
   } else h+=`<div class="card"><p class="sm">Elige un piloto para ver sus paquetes de horas, movimientos y permisos.</p></div>`;
   return h+`</div>`;
 }
+function bloqueHoras(sel,a){
+  const aid=a.id,mant=conMant(aid),s=saldo(sel.id,aid),bonos=bonosFIFO(sel.id,aid),mov=movimientos(sel.id,aid).slice().reverse(),asig=avionesPara(sel.id).some(x=>x.id===aid);
+  return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px;${asig?'':'opacity:.7'}">
+   <div class="row"><b>${a.matricula} <span class="sm">${esc(a.modelo)}</span></b><b class="${s<0?'neg':''}" style="font:700 1.3rem var(--f-disp)">${fmtMin(s)}</b></div>
+   <span class="sm">${mant?'Con paquete de mantenimiento: se gasta primero el de mantenimiento y después los adicionales, del más antiguo al más nuevo.':'Solo paquetes de 10 h, sin mantenimiento ni caducidad.'}${s<0?' El negativo se descuenta del próximo paquete.':''}${asig?'':' · Ya no tiene este avión asignado.'}</span>
+   ${bonos.length?bonos.map(b=>`<div class="line"><span>${b.mant?`<span class="chip ${b.caducado?'':'warn'}">Mantenimiento ${temporadaDe(b)}</span> `:'<span class="chip">Adicional</span> '}${esc(b.nota)} · pagado el ${fmtCorto(b.fecha)} ${b.fecha.slice(0,4)}${b.mant?`<br><span class="sm">${b.caducado?'Caducó el '+fmtCorto(b.caduca)+' '+b.caduca.slice(0,4)+(b.perdido?' · se perdieron '+fmtMin(b.perdido):''):'Caduca el '}</span>${b.caducado?'':`<input type="date" data-bcad="${b.id}" value="${b.caduca}" style="width:auto;min-height:28px;padding:2px 6px;font-size:.8rem;margin-left:4px">`}`:''}</span><span class="sm">${b.caducado?'caducado':'quedan '+fmtMin(b.quedan)+' de '+fmtMin(b.minutos)} ${b.quedan===b.minutos&&!b.caducado?`<button class="btn sm danger" style="padding:2px 8px;margin-left:6px" data-act="quitar-bono" data-id="${b.id}" title="Quitar paquete añadido por error">${S.confirm==='b'+b.id?'¿Quitar?':'×'}</button>`:''}</span></div>`).join(''):'<p class="sm">Sin paquetes en este avión.</p>'}
+   <div class="three">${mant?`<div class="field"><label>Añadir paquete</label><select id="bt${aid}" data-bt="${aid}"><option value="mantenimiento">Mantenimiento anual (caduca 30 abr)</option><option value="adicional">Horas adicionales (no caduca)</option></select></div>`:`<div class="field"><label>Añadir paquete</label><input value="Horas" readonly></div>`}<div class="field"><label>Horas</label><input id="bhrs${aid}" type="number" min="1" max="50" step="0.5" value="${mant?6:10}"></div><div class="field"><label>Fecha de pago</label><input type="date" id="bf${aid}" value="${today()}"></div></div>
+   <button class="btn sm" data-act="add-bono" data-id="${sel.id}" data-a="${aid}">Añadir paquete al ${a.matricula}</button>
+   <div class="two"><input id="aj${aid}" placeholder="± minutos (ej. -30)" inputmode="numeric"><input id="ajm${aid}" placeholder="Motivo del ajuste"></div><button class="btn sm ghost" data-act="add-ajuste" data-id="${sel.id}" data-a="${aid}">Ajuste manual en el ${a.matricula}</button>
+   <details><summary class="sm" style="cursor:pointer">Movimientos del ${a.matricula} (${mov.length})</summary>${mov.map(m=>`<div class="line"><span>${esc(m.txt)}<br><span class="sm">${fmtCorto(m.fecha)}</span></span><span class="${m.min<0?'neg':''}">${m.min>0?'+':''}${m.min} min</span></div>`).join('')||'<p class="sm">Sin movimientos.</p>'}</details></div>`;
+}
 function aAviones(){
   let h=`<div class="row"><h2>Aviones y horómetros</h2><button class="btn sm" data-act="nuevo-avion">+ Nuevo avión</button></div>`;
   h+=DB.aviones.slice().sort((a,b)=>(a.activo===false)-(b.activo===false)).map(a=>{const hr=horoActual(a.id),bs=DB.bloqueos.filter(b=>b.avion_id===a.id&&b.fin>=today()),baja=a.activo===false;
    const ult=vuelosValidos(a.id).sort((x,y)=>y.id-x.id)[0];
    const conHist=DB.vuelos.some(v=>v.avion_id===a.id)||(DB.calibraciones||[]).some(c=>c.avion_id===a.id);
-   return `<div class="card" style="display:grid;gap:8px;${baja?'opacity:.6':''}"><div class="row"><div class="row" style="justify-content:flex-start;gap:10px">${fotoDe(a)?`<img src="${fotoDe(a)}" alt="" style="width:72px;aspect-ratio:4/3;object-fit:cover;border-radius:7px">`:''}<h3>${a.matricula} · ${esc(a.modelo)} <span class="sm">${esc(a.clase||'')}</span> ${baja?'<span class="chip bad">Eliminado</span>':''}</h3></div><span class="sm">${a.tipo_horometro==='decimas'?'Horómetro de décimas':'Horómetro de horas y minutos'}</span></div>
+   return `<div class="card" style="display:grid;gap:8px;${baja?'opacity:.6':''}"><div class="row"><div class="row" style="justify-content:flex-start;gap:10px">${fotoDe(a)?`<img src="${fotoDe(a)}" alt="" style="width:72px;aspect-ratio:4/3;object-fit:cover;border-radius:7px">`:''}<h3>${a.matricula} · ${esc(a.modelo)} <span class="sm">${esc(a.clase||'')}</span> ${baja?'<span class="chip bad">Eliminado</span>':''}</h3></div><span class="sm" style="text-align:right">${a.tipo_horometro==='decimas'?'Horómetro de décimas':'Horómetro de horas y minutos'}<br>${conMant(a.id)?'Paquetes con mantenimiento':'Solo paquetes de 10 h'} · ${(n=>n+' piloto'+(n===1?'':'s'))(usuariosActivos().filter(u=>u.reservas!==false&&puedeVolar(u.id,a.id)).length)}</span></div>
    <div>${odo(a,hr)}</div><div class="sm">Próxima revisión: ${a.proxima_revision_min?fmtHoro(a,a.proxima_revision_min)+' · faltan '+fmtMin(a.proxima_revision_min-hr):'sin definir'} · ${vuelosValidos(a.id).length} vuelos registrados</div>
    ${baja?`<span class="sm">Eliminado: ya no aparece para reservar ni volar. Sus vuelos se conservan en el logbook.</span><button class="btn ghost" data-act="reactivar-avion" data-id="${a.id}">Recuperar avión</button>`:`
    <span class="lbl">Calibrar horómetro</span>
@@ -921,11 +954,12 @@ function modalAlta(){
   <div class="two"><div class="field"><label>Nombre</label><input data-m="nombre" value="${esc(f.nombre)}"></div><div class="field"><label>Correo</label><input type="email" data-m="email" value="${esc(f.email)}"></div></div>
   <div class="two"><div class="field"><label>Rol</label><select data-m="rol"><option value="socio" ${f.rol==='socio'?'selected':''}>Socio</option><option value="admin" ${f.rol==='admin'?'selected':''}>Administrador</option></select></div>
   <div class="field"><label>Safety pilot</label><select data-m="sp"><option value="">No</option><option value="1" ${f.sp?'selected':''}>Sí, puede ir de safety pilot</option></select></div></div>
-  ${f.reservas===false?'':`  <div class="field"><label>Vuela suelto en</label><div class="chips">${avionesActivos().map(a=>`<button class="${f.sueltos.includes(a.id)?'on':''}" data-act="alta-suelto" data-id="${a.id}">${a.matricula}</button>`).join('')}</div></div>
+  ${f.reservas===false?'':`  <div class="field"><label>Aviones que puede reservar y volar</label><div class="chips">${avionesActivos().map(a=>`<button class="${f.avs.includes(a.id)?'on':''}" data-act="alta-av" data-id="${a.id}">${f.avs.includes(a.id)?'✓ ':''}${a.matricula}</button>`).join('')}</div><span class="sm">Solo verá estos aviones. Cada avión lleva sus propias horas.</span></div>
+  <div class="field"><label>Vuela suelto en</label><div class="chips">${avionesActivos().filter(a=>f.avs.includes(a.id)).map(a=>`<button class="${f.sueltos.includes(a.id)?'on':''}" data-act="alta-suelto" data-id="${a.id}">${a.matricula}</button>`).join('')||'<span class="sm">Primero marca sus aviones.</span>'}</div></div>
   <div class="field"><label>Exigir safety pilot al reservar</label><select data-m="rec"><option value="">Sin restricción</option><option value="3" ${f.rec==='3'?'selected':''}>Si no ha volado en los últimos 3 meses</option><option value="6" ${f.rec==='6'?'selected':''}>Si no ha volado en los últimos 6 meses</option></select><span class="sm">Útil para pilotos con poca experiencia. El piloto no ve este ajuste. Mientras no tenga vuelos en el club, se le pedirá safety pilot.</span></div>
 `}
   <div class="two"><div class="field"><label>Licencia caduca</label><input type="date" data-m="lic" value="${esc(f.lic)}"></div><div class="field"><label>Médico caduca</label><input type="date" data-m="med" value="${esc(f.med)}"></div></div>
-  ${f.reservas===false?'':`<div class="two"><div class="field"><label>Paquete inicial</label><select data-m="bono"><option value="">Ninguno</option><option value="6" ${+f.bono===6?'selected':''}>Mantenimiento anual (6 h)</option><option value="10" ${+f.bono===10?'selected':''}>Horas adicionales (10 h)</option></select></div><div class="field"><label>Fecha de compra</label><input type="date" data-m="bonoFecha" value="${esc(f.bonoFecha)}"></div></div>`}
+  ${f.reservas===false?'':`<div class="two"><div class="field"><label>Paquete inicial</label><select data-m="bono"><option value="">Ninguno</option>${avionesActivos().filter(a=>f.avs.includes(a.id)).map(a=>(conMant(a.id)?`<option value="${a.id}:6" ${f.bono===a.id+':6'?'selected':''}>${a.matricula} · Mantenimiento anual (6 h)</option>`:'')+`<option value="${a.id}:10" ${f.bono===a.id+':10'?'selected':''}>${a.matricula} · ${conMant(a.id)?'Horas adicionales':'Paquete'} (10 h)</option>`).join('')}</select></div><div class="field"><label>Fecha de compra</label><input type="date" data-m="bonoFecha" value="${esc(f.bonoFecha)}"></div></div>`}
   <div class="msg info">Al darle de alta le llegará un correo para crear su contraseña. Después solo tiene que entrar en la app con su correo.</div>
   <div class="two"><button class="btn ghost" data-act="cerrar">Cancelar</button><button class="btn" data-act="guardar-alta">Dar de alta</button></div>`;
 }
@@ -937,6 +971,7 @@ function modalAvion(){
   ${ed?`<p class="sm">Horómetro: ${f.tipo==='decimas'?'décimas':'horas y minutos'}. Para corregir la lectura usa «Calibrar horómetro».</p>`:`<div class="two"><div class="field"><label>Tipo de horómetro</label><select data-m="tipo"><option value="decimas" ${f.tipo==='decimas'?'selected':''}>Décimas de hora</option><option value="horas_minutos" ${f.tipo==='horas_minutos'?'selected':''}>Horas y minutos (aguja)</option></select></div>
   <div class="field"><label>Lectura actual del horómetro</label><input inputmode="decimal" data-m="horo" value="${esc(f.horo)}" placeholder="${f.tipo==='decimas'?'1200,5':'1200,30'}" style="font-family:var(--f-mono)"></div></div>
   <span class="sm">${AYUDA_HORO(tmp)}</span>`}
+  <div class="field"><label>Paquetes de horas de este avión</label><select data-m="paquetes"><option value="mant" ${f.paquetes!=='solo10'?'selected':''}>Con paquete de mantenimiento anual (6 h, caduca el 30 de abril) + paquetes adicionales</option><option value="solo10" ${f.paquetes==='solo10'?'selected':''}>Solo paquetes de 10 h, sin mantenimiento ni caducidad</option></select><span class="sm">Cada avión lleva sus propias horas: lo que se compra para un avión solo se gasta en ese avión.</span></div>
   <div class="field"><label>Próxima revisión (lectura del horómetro)</label><input inputmode="decimal" data-m="rev" value="${esc(f.rev)}" placeholder="opcional" style="font-family:var(--f-mono);max-width:220px"></div>
   <div class="field"><label>Foto</label><div class="row" style="justify-content:flex-start">${f.foto?`<img src="${f.foto}" alt="" style="width:120px;aspect-ratio:4/3;object-fit:cover;border-radius:8px">`:''}<input type="file" accept="image/*" data-foto="1" style="max-width:280px"></div><span class="sm">Se usa en los botones para elegir avión.</span></div>
   <div class="two"><button class="btn ghost" data-act="cerrar">Cancelar</button><button class="btn" data-act="guardar-avion">${ed?'Guardar cambios':'Crear avión'}</button></div>`;
@@ -964,7 +999,7 @@ function filasVuelos(f){
     'Horómetro salida':fmtHoro(a,v.horometro_salida_min),'Horómetro llegada':fmtHoro(a,v.horometro_llegada_min),'Minutos':minutosVuelo(v),'Tiempo':fmtMin(minutosVuelo(v)),
     'Tomas':v.tomas,'Descuenta bono':v.descuenta_bono?'Sí':'No','Estado':v.estado==='ok'?'OK':v.estado==='por_revisar'?'Por revisar':'Anulado'}});
 }
-function filasSocios(){return DB.usuarios.map(u=>({'Nombre':u.nombre,'Correo':u.email,'Rol':u.rol==='admin'?'Administrador':'Socio','Safety pilot':u.sp?'Sí':'No','Suelto en':DB.aviones.filter(a=>esSuelto(u.id,a.id)).map(a=>a.matricula).join(', '),'Licencia caduca':u.licencia_caduca||'','Médico caduca':u.medico_caduca||'','Exige SP si no vuela en':u.recencia_meses?u.recencia_meses+' meses':'Sin restricción','Último vuelo':ultimoVuelo(u.id)||'','Saldo (min)':saldo(u.id),'Saldo':fmtMin(saldo(u.id)),'Estado':u.activo===false?'De baja':'Activo'}))}
+function filasSocios(){return DB.usuarios.map(u=>({'Nombre':u.nombre,'Correo':u.email,'Rol':u.rol==='admin'?'Administrador':'Socio','Safety pilot':u.sp?'Sí':'No','Aviones':avionesPara(u.id).map(a=>a.matricula).join(', '),'Suelto en':DB.aviones.filter(a=>esSuelto(u.id,a.id)).map(a=>a.matricula).join(', '),'Licencia caduca':u.licencia_caduca||'','Médico caduca':u.medico_caduca||'','Exige SP si no vuela en':u.recencia_meses?u.recencia_meses+' meses':'Sin restricción','Último vuelo':ultimoVuelo(u.id)||'','Saldo por avión':saldosTxt(u.id),'Estado':u.activo===false?'De baja':'Activo'}))}
 const slugN=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase();
 function nombreArchivo(f,ext){return (!f?'aeroclub-datos':f.uid!=null?(f.mis?'mis-vuelos':'vuelos-piloto-'+slugN(nombre(f.uid))):'vuelos-avion-'+slugN(A(f.aid).matricula))+'-'+stamp()+'.'+ext}
 function tituloF(f){return !f?'Logbook del aeroclub':f.uid!=null?(f.mis?'Mis vuelos - ':'Vuelos del piloto ')+nombre(f.uid):'Vuelos del avión '+A(f.aid).matricula+' ('+A(f.aid).modelo+')'}
@@ -972,13 +1007,13 @@ async function descargarExcel(f){
   try{await loadLib('xlsx')}catch(e){return toast(e.message)}
   const X=window.XLSX,wb=X.utils.book_new(),add=(n,rows)=>{const ws=X.utils.json_to_sheet(rows.length?rows:[{'(vacío)':''}]);ws['!cols']=Object.keys(rows[0]||{a:1}).map(k=>({wch:Math.max(10,k.length+2)}));X.utils.book_append_sheet(wb,ws,n)};
   if(f&&f.uid!=null){const u=U(f.uid);add(f.mis?'Mis vuelos':'Vuelos',filasVuelos(f).map(r=>{delete r['Piloto'];return r}));
-    if(!f.mis){add('Saldo',[{'Piloto':u.nombre,'Estado':u.activo===false?'De baja':'Activo','Saldo (min)':saldo(u.id),'Saldo':fmtMin(saldo(u.id))}]);add('Movimientos',movimientos(u.id).map(m=>({'Fecha':m.fecha,'Concepto':m.txt,'Minutos':m.min})))}}
+    if(!f.mis){add('Saldo',saldosDe(u.id).map(x=>({'Piloto':u.nombre,'Avión':x.a.matricula,'Estado':u.activo===false?'De baja':'Activo','Saldo (min)':x.s,'Saldo':fmtMin(x.s)})));add('Movimientos',movimientos(u.id).map(m=>({'Fecha':m.fecha,'Avión':A(m.avion_id).matricula,'Concepto':m.txt,'Minutos':m.min})))}}
   else if(f&&f.aid!=null){const a=A(f.aid);add('Vuelos '+a.matricula,filasVuelos(f).map(r=>{delete r['Avión'];delete r['Modelo'];return r}));
     add('Calibraciones',(DB.calibraciones||[]).filter(c=>c.avion_id===a.id).map(c=>({'Fecha':c.fecha,'Antes':fmtHoro(a,c.anterior_min),'Después':fmtHoro(a,c.nuevo_min),'Diferencia (min)':c.nuevo_min-c.anterior_min,'A nombre de':nombre(c.piloto_id),'Nota':c.motivo||''})))}
   else{
     add('Vuelos',filasVuelos(null));add('Pilotos y saldos',filasSocios());
-    add('Paquetes de horas',DB.bonos.map(b=>{const q=bonosFIFO(b.usuario_id).find(x=>x.id===b.id);return {'Piloto':nombre(b.usuario_id),'Paquete':b.nota,'Tipo':esMant(b)?'Mantenimiento':'Adicional','Fecha pago':b.fecha,'Caduca':caducaDe(b)||'','Minutos':b.minutos,'Quedan (min)':q?q.quedan:'','Perdidos al caducar (min)':q&&q.perdido?q.perdido:''}}));
-    add('Movimientos',DB.usuarios.flatMap(u=>movimientos(u.id).map(m=>({'Piloto':u.nombre,'Fecha':m.fecha,'Concepto':m.txt,'Minutos':m.min}))));
+    add('Paquetes de horas',DB.bonos.map(b=>{const q=bonosFIFO(b.usuario_id,avDe(b)).find(x=>x.id===b.id);return {'Piloto':nombre(b.usuario_id),'Avión':A(avDe(b)).matricula,'Paquete':b.nota,'Tipo':esMant(b)?'Mantenimiento':'Adicional','Fecha pago':b.fecha,'Caduca':caducaDe(b)||'','Minutos':b.minutos,'Quedan (min)':q?q.quedan:'','Perdidos al caducar (min)':q&&q.perdido?q.perdido:''}}));
+    add('Movimientos',DB.usuarios.flatMap(u=>movimientos(u.id).map(m=>({'Piloto':u.nombre,'Avión':A(m.avion_id).matricula,'Fecha':m.fecha,'Concepto':m.txt,'Minutos':m.min}))));
     add('Reservas',DB.reservas.map(r=>({'Avión':A(r.avion_id).matricula,'Piloto':nombre(r.usuario_id),'Inicio':r.inicio.replace('T',' '),'Fin':r.fin.replace('T',' '),'Safety pilot':r.safety_pilot_id?nombre(r.safety_pilot_id):'','Estado SP':r.sp_estado||'','Estado':r.estado})));
     add('Aviones',DB.aviones.map(a=>({'Matrícula':a.matricula,'Modelo':a.modelo,'Clase':a.clase||'','Horómetro':a.tipo_horometro==='decimas'?'Décimas':'Horas y minutos','Lectura actual':fmtHoro(a,horoActual(a.id)),'Próxima revisión':a.proxima_revision_min?fmtHoro(a,a.proxima_revision_min):'','Estado':a.activo===false?'De baja':'Activo'})));
     add('Calibraciones',(DB.calibraciones||[]).map(c=>{const a=A(c.avion_id);return {'Fecha':c.fecha,'Avión':a.matricula,'Antes':fmtHoro(a,c.anterior_min),'Después':fmtHoro(a,c.nuevo_min),'Diferencia (min)':c.nuevo_min-c.anterior_min,'A nombre de':nombre(c.piloto_id),'Descontado':c.descuenta_bono?'Sí':'No','Nota':c.motivo||'','Administrador':nombre(c.usuario_id)}}));
@@ -998,7 +1033,7 @@ async function descargarPDF(f){
   doc.autoTable({startY:26,head:[cols.map(pdfTxt)],body:rows.map(r=>cols.map(c=>pdfTxt(c==='Tipo'&&r[c]==='Normal'?'':r[c]))),styles:{fontSize:7.5,cellPadding:1.6},headStyles:{fillColor:[13,34,54]},alternateRowStyles:{fillColor:[240,244,248]},margin:{left:10,right:10}});
   const tot=rows.filter(r=>r['Estado']!=='Anulado').reduce((s,r)=>s+r['Minutos'],0);
   let y=doc.lastAutoTable.finalY+7;doc.setFontSize(10);doc.text(pdfTxt('Total: '+fmtMin(tot)+' en '+rows.filter(r=>r['Estado']!=='Anulado').length+' vuelos'),10,y);
-  if(f&&f.uid!=null&&!f.mis){doc.setFontSize(10);doc.text(pdfTxt('Saldo actual: '+fmtMin(saldo(f.uid))+(U(f.uid).activo===false?' · Piloto de baja':'')),10,y+6)}
+  if(f&&f.uid!=null&&!f.mis){doc.setFontSize(10);doc.text(pdfTxt('Saldo actual: '+saldosTxt(f.uid)+(U(f.uid).activo===false?' · Piloto de baja':'')),10,y+6)}
   if(!f){doc.addPage();doc.setFontSize(15);doc.text('Pilotos y saldos',14,15);
     const sc=['Nombre','Rol','Safety pilot','Suelto en','Licencia caduca','Médico caduca','Saldo','Estado'];
     doc.autoTable({startY:22,head:[sc.map(pdfTxt)],body:filasSocios().map(r=>sc.map(c=>pdfTxt(r[c]))),styles:{fontSize:8.5},headStyles:{fillColor:[13,34,54]}});}
@@ -1071,7 +1106,8 @@ function render(){
 /* ---------- acciones ---------- */
 function nuevaReserva(){
   const u=me();const d=S.view==='calendario'&&S.day>=today()?S.day:today();
-  const av=(avionesActivos().find(a=>esSuelto(u.id,a.id))||avionesActivos()[0]).id;
+  const mis=avionesPara(u.id);if(!mis.length)return toast('No tienes ningún avión asignado. Habla con un administrador.');
+  const av=(mis.find(a=>saldo(u.id,a.id)>0&&esSuelto(u.id,a.id))||mis.find(a=>saldo(u.id,a.id)>0)||mis[0]).id;
   S.form={kind:'reserva',avion:av,fecha:d,desde:'10:00',hasta:'12:00',sp:'',excluir:null};
   S.modal={kind:'reserva'};render();
 }
@@ -1110,7 +1146,7 @@ wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calend
       if(nuevoSP!==r.safety_pilot_id){r.safety_pilot_id=nuevoSP;r.sp_estado=nuevoSP?'pendiente':null}else if(nuevoSP&&cambiaHora)r.sp_estado='pendiente';
       save();S.modal=null;S.form=null;S.day=f.fecha;return toast('Reserva modificada'+(r.sp_estado==='pendiente'?'. '+nombre(r.safety_pilot_id)+' debe aceptar el cambio.':'.'))}
     if(f.excluir){const r=DB.reservas.find(r=>r.id===f.excluir);r.safety_pilot_id=+f.sp;r.sp_estado='pendiente';save();S.modal=null;S.form=null;toast('Petición enviada a '+nombre(+f.sp));return}
-    if(saldo(u.id)<=0)return toast('Sin saldo: no se puede reservar.');
+    if(saldo(u.id,+f.avion)<=0)return toast('Sin horas en el '+A(+f.avion).matricula+': no se puede reservar.');
     const nSP=necesitaSP(u.id,+f.avion)||!!f.forzarSP;if(nSP&&!f.sp)return toast('Elige un safety pilot.');const copia={...f};
     DB.reservas.push({id:nid(),avion_id:+f.avion,usuario_id:u.id,safety_pilot_id:nSP?+f.sp:null,sp_estado:nSP?'pendiente':null,inicio:f.fecha+'T'+f.desde,fin:f.fecha+'T'+f.hasta,estado:'activa',creado_en:ahora()});
     S.modal=null;S.form=null;S.day=f.fecha;render();save.silencio=!nSP;save().then(r=>{save.silencio=false;if(r.ok)return toast(nSP?'Reserva hecha. '+nombre(+copia.sp)+' debe aceptar.':'Reserva hecha.');
@@ -1141,7 +1177,7 @@ wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calend
     const v={id:nid(),avion_id:a.id,piloto_id:u.id,safety_pilot_id:f.sp?+f.sp:null,tipo:f.tipo,fecha:today(),aerodromo_salida:f.salida.trim(),aerodromo_destino:f.destino.trim(),hora_salida:f.hora,hora_llegada:min2hm(hm2min(f.hora)+min),horometro_salida_min:sal,horometro_llegada_min:lleg,acompanante:!!f.sp||f.acomp==='si',tomas:+f.tomas,descuenta_bono:DESCUENTA[f.tipo],aprobacion:(!adm&&f.tipo==='divulgacion')?'pendiente':null,salida_editada:editada,nota_piloto:editada?f.nota.trim():'',estado:editada?'por_revisar':'ok',reserva_id:f.reserva,creado_en:ahora()+':00'};
     A(a.id).horo_actual=lleg;if(!esAdminCuenta()&&me())me().ultimo_vuelo_ms=Date.parse(today()+'T12:00:00');
     DB.vuelos.push(v);log(adm?'Creado por administrador':'Creado',v.id,TIPO_TXT[v.tipo]+' · Salida '+fmtHoro(a,sal)+' · Llegada '+fmtHoro(a,lleg)+' · '+min+' min','');save();S.form=null;if(adm)S.adm='logbook';else S.view='inicio';
-    toast((adm?'Vuelo de '+u.nombre+' guardado: ':'Vuelo guardado: ')+fmtMin(min)+(v.aprobacion==='pendiente'?'. Queda pendiente de aprobación por el administrador. No descuenta bono salvo que no se apruebe.':v.descuenta_bono?'. Saldo: '+fmtMin(saldo(u.id))+'.':'. No descuenta bono.')+(editada?' Queda por revisar.':''))},
+    toast((adm?'Vuelo de '+u.nombre+' guardado: ':'Vuelo guardado: ')+fmtMin(min)+(v.aprobacion==='pendiente'?'. Queda pendiente de aprobación por el administrador. No descuenta bono salvo que no se apruebe.':v.descuenta_bono?'. Saldo en el '+a.matricula+': '+fmtMin(saldo(u.id,a.id))+'.':'. No descuenta bono.')+(editada?' Queda por revisar.':''))},
   'editar-vuelo':e=>{const v=DB.vuelos.find(x=>x.id===+e.dataset.id),a=A(v.avion_id);const t=m=>horoInput(a,m);S.modal={kind:'vuelo',id:v.id,sal:t(v.horometro_salida_min),lleg:t(v.horometro_llegada_min),tipo:v.tipo,piloto:v.piloto_id,motivo:''};render()},
   'mv-guardar':()=>{const f=S.modal,v=DB.vuelos.find(x=>x.id===f.id),a=A(v.avion_id);
     const p=t=>parseHoro(a,t);
@@ -1173,21 +1209,25 @@ wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calend
   'tog-sp':e=>{const u=U(+e.dataset.id);u.sp=!u.sp;save();render()},
   'tog-suelto':e=>{const uid=+e.dataset.id,aid=+e.dataset.a;const i=DB.suelto.findIndex(s=>s[0]===uid&&s[1]===aid);if(i>=0)DB.suelto.splice(i,1);else DB.suelto.push([uid,aid]);save();render()},
   'add-bono':e=>{const h=+document.getElementById('bh').value,f=document.getElementById('bf').value||today();DB.bonos.push({id:nid(),usuario_id:+e.dataset.id,minutos:h*60,fecha:f,nota:'Paquete de '+h+' h'});save();toast('Paquete de '+h+' h añadido ('+h*60+' min)')},
-  'add-ajuste':e=>{const m=parseInt(document.getElementById('aj').value,10),mot=document.getElementById('ajm').value.trim();if(!m||!mot)return toast('Indica los minutos (con signo) y el motivo.');DB.ajustes.push({id:nid(),usuario_id:+e.dataset.id,minutos:m,motivo:mot,fecha:today()});save();toast('Ajuste guardado')},
+  'add-ajuste':e=>{const aid=+e.dataset.a,m=parseInt(document.getElementById('aj'+aid).value,10),mot=document.getElementById('ajm'+aid).value.trim();if(!m||!mot)return toast('Indica los minutos (con signo) y el motivo.');DB.ajustes.push({id:nid(),usuario_id:+e.dataset.id,avion_id:aid,minutos:m,motivo:mot,fecha:today()});save();toast('Ajuste guardado en el '+A(aid).matricula)},
+  'tog-av':e=>{const u=U(+e.dataset.id),aid=+e.dataset.a;let l=avionesPara(u.id).map(a=>a.id);const quita=l.includes(aid);l=quita?l.filter(x=>x!==aid):[...l,aid];u.aviones=l;
+    let n=0;if(quita){const now=today()+'T00:00';reservasActivas().filter(r=>r.inicio>=now&&r.usuario_id===u.id&&r.avion_id===aid).forEach(r=>{r.estado='cancelada';n++})}
+    save();toast(quita?u.nombre+' ya no ve el '+A(aid).matricula+'.'+(n?' '+n+' reserva(s) cancelada(s).':''):u.nombre+' ya puede reservar y volar el '+A(aid).matricula+'.')},
   'ir-logbook':()=>{try{localStorage.setItem('aeroclub_parte_'+(S.email||'').toLowerCase(),'logbook')}catch(e){}location.href='logbook.html'},
-  'alta-reservas':()=>{S.modal.reservas=S.modal.reservas===false;if(S.modal.reservas===false){S.modal.bono='';S.modal.sueltos=[];S.modal.sp='';S.modal.rec=''}else S.modal.bono='10';render()},
+  'alta-reservas':()=>{S.modal.reservas=S.modal.reservas===false;if(S.modal.reservas===false){S.modal.bono='';S.modal.sueltos=[];S.modal.sp='';S.modal.rec=''}else{S.modal.avs=avionesActivos().map(a=>a.id);S.modal.bono=''}render()},
+  'alta-av':e=>{const id=+e.dataset.id,l=S.modal.avs;const i=l.indexOf(id);if(i>=0){l.splice(i,1);S.modal.sueltos=S.modal.sueltos.filter(x=>x!==id);if(String(S.modal.bono).startsWith(id+':'))S.modal.bono=''}else l.push(id);render()},
   'tog-reservas':e=>{const id=+e.dataset.id,u=U(id);
     if(u.reservas!==false){if(S.confirm!=='r'+id){S.confirm='r'+id;return render()}S.confirm=null;u.reservas=false;
       const now=today()+'T00:00';let n=0;reservasActivas().filter(r=>r.inicio>=now&&r.usuario_id===id).forEach(r=>{r.estado='cancelada';n++});
       save();return toast(u.nombre+' ya no tiene acceso a los aviones del club. Sigue usando su logbook.'+(n?' '+n+' reserva(s) cancelada(s).':''))}
     u.reservas=true;save();toast(u.nombre+' vuelve a tener acceso a los aviones del club.')},
   'ver-logbook-baja':e=>{location.href='logbook.html?socio='+e.dataset.id},
-  alta:()=>{S.modal={kind:'alta',reservas:true,nombre:'',email:'',rol:'socio',sp:'',sueltos:[],lic:'',med:'',bono:'10',bonoFecha:today(),rec:''};render()},
+  alta:()=>{S.modal={kind:'alta',reservas:true,nombre:'',email:'',rol:'socio',sp:'',sueltos:[],avs:avionesActivos().map(a=>a.id),lic:'',med:'',bono:'',bonoFecha:today(),rec:''};render()},
   'alta-suelto':e=>{const id=+e.dataset.id,l=S.modal.sueltos;const i=l.indexOf(id);if(i>=0)l.splice(i,1);else l.push(id);render()},
   'guardar-alta':()=>{const f=S.modal;if(!f.nombre.trim()||!/^\S+@\S+\.\S+$/.test(f.email.trim()))return toast('Pon nombre y un correo válido.');if(DB.usuarios.some(u=>(u.email||'').toLowerCase()===f.email.trim().toLowerCase()))return toast('Ya hay un socio con ese correo.');
-    const id=nid();DB.usuarios.push({id,nombre:f.nombre.trim(),email:f.email.trim().toLowerCase(),rol:f.rol,sp:!!f.sp,idioma:'ca',reservas:f.reservas!==false,licencia_caduca:f.lic||null,medico_caduca:f.med||null,recencia_meses:f.rec?+f.rec:null,activo:true});
+    const id=nid();DB.usuarios.push({id,nombre:f.nombre.trim(),email:f.email.trim().toLowerCase(),rol:f.rol,sp:!!f.sp,idioma:'ca',reservas:f.reservas!==false,aviones:f.reservas!==false?f.avs.slice():[],licencia_caduca:f.lic||null,medico_caduca:f.med||null,recencia_meses:f.rec?+f.rec:null,activo:true});
     f.sueltos.forEach(a=>DB.suelto.push([id,a]));
-    if(f.bono){const fb=f.bonoFecha||today(),mant=+f.bono===6;const b={id:nid(),usuario_id:id,minutos:+f.bono*60,fecha:fb,tipo:mant?'mantenimiento':'adicional',nota:(mant?'Paquete mantenimiento ':'Paquete de ')+f.bono+' h'};if(mant)b.caduca=cadMant(fb);DB.bonos.push(b)}
+    if(f.bono&&f.reservas!==false){const [ba,bh]=String(f.bono).split(':').map(Number),fb=f.bonoFecha||today(),mant=bh===6&&conMant(ba);const b={id:nid(),usuario_id:id,avion_id:ba,minutos:bh*60,fecha:fb,tipo:mant?'mantenimiento':'adicional',nota:(mant?'Paquete mantenimiento ':'Paquete de ')+bh+' h'};if(mant)b.caduca=cadMant(fb);DB.bonos.push(b)}
     S.modal=null;S.sel=id;render();const em=f.email.trim().toLowerCase(),nom=f.nombre.trim();
     save().then(r=>{if(!r.ok)return;return API.crearCuenta(em).then(est=>toast(est==='existia'?nom+' dado de alta. Ese correo ya tenía cuenta: le hemos enviado un correo para poner una contraseña nueva.':nom+' dado de alta. Le hemos enviado un correo a '+em+' para que cree su contraseña.'),e=>toast(nom+' está dado de alta, pero no se ha podido enviar el correo ('+(e.code||'error')+'). Usa «Reenviar invitación».'))})},
   'reinvitar':e=>{const u=U(+e.dataset.id);API.crearCuenta(u.email.toLowerCase()).then(()=>toast('Correo enviado a '+u.email+'.'),er=>toast('No se ha podido enviar ('+(er.code||'error')+').'))},
@@ -1196,22 +1236,22 @@ wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calend
     reservasActivas().filter(r=>r.inicio>=now&&r.safety_pilot_id===id).forEach(r=>{r.sp_estado='rechazado'});
     save();toast(u.nombre+' dado de baja.'+(n?' '+n+' reserva(s) cancelada(s).':''))},
   'reactivar-piloto':e=>{const u=U(+e.dataset.id);u.activo=true;save();toast(u.nombre+' dado de alta de nuevo.')},
-  'add-bono':e=>{const uid=+e.dataset.id,tipo=(document.getElementById('bt')||{}).value||'adicional',h=+((document.getElementById('bhrs')||{}).value||0),f=(document.getElementById('bf')||{}).value||today();
+  'add-bono':e=>{const uid=+e.dataset.id,aid=+e.dataset.a,tipo=conMant(aid)?((document.getElementById('bt'+aid)||{}).value||'adicional'):'adicional',h=+((document.getElementById('bhrs'+aid)||{}).value||0),f=(document.getElementById('bf'+aid)||{}).value||today();
     if(!(h>0&&h<=50))return toast('Indica las horas del paquete.');const min=Math.round(h*60),mant=tipo==='mantenimiento';
-    const b={id:nid(),usuario_id:uid,minutos:min,fecha:f,tipo,nota:(mant?'Paquete mantenimiento ':'Paquete de ')+(h%1?String(h).replace('.',','):h)+' h'};if(mant)b.caduca=cadMant(f);
-    DB.bonos.push(b);save();toast((mant?'Paquete de mantenimiento ('+temporadaDe(b)+', caduca el '+fmtCorto(b.caduca)+' '+b.caduca.slice(0,4)+')':'Paquete adicional de '+fmtMin(min))+' añadido a '+nombre(uid)+'.')},
+    const b={id:nid(),usuario_id:uid,avion_id:aid,minutos:min,fecha:f,tipo,nota:(mant?'Paquete mantenimiento ':'Paquete de ')+(h%1?String(h).replace('.',','):h)+' h'};if(mant)b.caduca=cadMant(f);
+    DB.bonos.push(b);save();toast((mant?'Paquete de mantenimiento ('+temporadaDe(b)+', caduca el '+fmtCorto(b.caduca)+' '+b.caduca.slice(0,4)+')':'Paquete de '+fmtMin(min))+' del '+A(aid).matricula+' añadido a '+nombre(uid)+'.')},
   'quitar-bono':e=>{const id=+e.dataset.id;if(S.confirm!=='b'+id){S.confirm='b'+id;return render()}S.confirm=null;DB.bonos=DB.bonos.filter(b=>b.id!==id);save();toast('Paquete quitado.')},
   'ver-vuelos-piloto':e=>{S.adm='logbook';S.filtro='pil'+e.dataset.id;render();window.scrollTo(0,0)},
   'dl-pil-sel':e=>descargarPDF({uid:+e.dataset.id,todos:true}),
-  'nuevo-avion':()=>{S.modal={kind:'avion',matricula:'',modelo:'',clase:'Ultraligero',tipo:'decimas',horo:'',rev:'',foto:''};render()},
-  'editar-avion':e=>{const a=A(+e.dataset.id);S.modal={kind:'avion',id:a.id,matricula:a.matricula,modelo:a.modelo,clase:a.clase||'Avión',tipo:a.tipo_horometro,horo:'',rev:a.proxima_revision_min?horoInput(a,a.proxima_revision_min):'',foto:a.foto||''};render()},
+  'nuevo-avion':()=>{S.modal={kind:'avion',matricula:'',modelo:'',clase:'Ultraligero',tipo:'decimas',horo:'',rev:'',foto:'',paquetes:'mant'};render()},
+  'editar-avion':e=>{const a=A(+e.dataset.id);S.modal={kind:'avion',id:a.id,matricula:a.matricula,modelo:a.modelo,clase:a.clase||'Avión',tipo:a.tipo_horometro,horo:'',rev:a.proxima_revision_min?horoInput(a,a.proxima_revision_min):'',foto:a.foto||'',paquetes:a.paquetes||'mant'};render()},
   'guardar-avion':()=>{const f=S.modal,mat=f.matricula.trim().toUpperCase();if(!mat||!f.modelo.trim())return toast('Pon matrícula y modelo.');
     if(DB.aviones.some(a=>a.matricula===mat&&a.id!==f.id))return toast('Ya hay un avión con esa matrícula.');
     const tmp={tipo_horometro:f.tipo};let rev=null;if(String(f.rev).trim()){rev=parseHoro(tmp,f.rev);if(rev===null)return toast('No se entiende la próxima revisión. '+AYUDA_HORO(tmp))}
-    if(f.id){const a=A(f.id);a.matricula=mat;a.modelo=f.modelo.trim();a.clase=f.clase;a.proxima_revision_min=rev;if(f.foto)a.foto=f.foto;save();S.modal=null;return toast('Avión actualizado.')}
+    if(f.id){const a=A(f.id);a.matricula=mat;a.modelo=f.modelo.trim();a.clase=f.clase;a.proxima_revision_min=rev;a.paquetes=f.paquetes==='solo10'?'solo10':'mant';if(f.foto)a.foto=f.foto;save();S.modal=null;return toast('Avión actualizado.')}
     const h=parseHoro(tmp,f.horo);if(h===null)return toast('Escribe la lectura actual del horómetro. '+AYUDA_HORO(tmp));
-    DB.aviones.push({id:nid(),matricula:mat,modelo:f.modelo.trim(),clase:f.clase,tipo_horometro:f.tipo,horometro_inicial_min:h,proxima_revision_min:rev,foto:f.foto||'',activo:true});
-    save();S.modal=null;toast(mat+' creado. Marca en «Pilotos» quién vuela suelto en él.')},
+    DB.aviones.push({id:nid(),matricula:mat,modelo:f.modelo.trim(),clase:f.clase,tipo_horometro:f.tipo,horometro_inicial_min:h,proxima_revision_min:rev,foto:f.foto||'',paquetes:f.paquetes==='solo10'?'solo10':'mant',activo:true});
+    save();S.modal=null;toast(mat+' creado. Marca en «Pilotos» quién puede volarlo y quién vuela suelto en él.')},
   'borrar-avion':e=>{const id=+e.dataset.id;if(S.confirm!=='a'+id){S.confirm='a'+id;return render()}S.confirm=null;const a=A(id);
     const conHist=DB.vuelos.some(v=>v.avion_id===id)||(DB.calibraciones||[]).some(c=>c.avion_id===id);
     const now=today()+'T00:00';let n=0;reservasActivas().filter(r=>r.avion_id===id&&r.inicio>=now).forEach(r=>{r.estado='cancelada';n++});
@@ -1233,7 +1273,7 @@ wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calend
     const ant=horoActual(id);if(v===ant)return toast('Esa lectura ya coincide con la de la app.');
     const dif=v-ant,descuenta=desc&&dif>0;
     DB.calibraciones=DB.calibraciones||[];DB.calibraciones.push({id:nid(),avion_id:id,anterior_min:ant,nuevo_min:v,piloto_id:pid,descuenta_bono:descuenta,motivo:nota,usuario_id:S.user,fecha:ahora()});
-    if(descuenta)DB.ajustes.push({id:nid(),usuario_id:pid,minutos:-dif,motivo:'Calibración horómetro '+a.matricula+(nota?' ('+nota+')':''),fecha:today()});
+    if(descuenta)DB.ajustes.push({id:nid(),usuario_id:pid,avion_id:id,minutos:-dif,motivo:'Calibración horómetro '+a.matricula+(nota?' ('+nota+')':''),fecha:today()});
     save();toast(a.matricula+' calibrado: '+fmtHoro(a,ant)+' → '+fmtHoro(a,v)+' (a nombre de '+nombre(pid)+')'+(descuenta?'. Descontados '+fmtMin(dif)+' de su bono.':''))},
   'quitar-bloqueo':e=>{DB.bloqueos=DB.bloqueos.filter(b=>b.id!==+e.dataset.id);save();toast('Bloqueo quitado')}
 };
@@ -1245,7 +1285,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.f&&S.form){S.form[t.dataset.f]=t.value;if(S.form.kind==='reserva'||['avion','sp','piloto'].includes(t.dataset.f)){if(t.dataset.f==='avion'&&S.form.kind==='vuelo'){S.form.editSalida=false;S.form.llegada='';S.form.salidaTxt=''}render()}else prevVuelo()}
   if(t.dataset.m&&S.modal){S.modal[t.dataset.m]=t.value;if(S.modal.kind==='avion'&&t.dataset.m==='tipo')render()}
   if(t.dataset.foto&&S.modal&&t.files&&t.files[0]){const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const w=480,h=Math.round(img.height*w/img.width),c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);S.modal.foto=c.toDataURL('image/jpeg',.8);render()};img.src=fr.result};fr.readAsDataURL(t.files[0])}
-  if(t.id==='bt'){const hh=document.getElementById('bhrs');if(hh)hh.value=t.value==='mantenimiento'?6:10}
+  if(t.dataset.bt){const hh=document.getElementById('bhrs'+t.dataset.bt);if(hh)hh.value=t.value==='mantenimiento'?6:10}
   if(t.dataset.bcad!==undefined&&t.value){const b=DB.bonos.find(x=>x.id===+t.dataset.bcad);if(b){b.caduca=t.value;b.tipo='mantenimiento';save();toast('Caducidad cambiada al '+fmtCorto(t.value)+' '+t.value.slice(0,4)+'.')}}
   if(t.dataset.recencia!==undefined){const u=U(+t.dataset.recencia);u.recencia_meses=t.value?+t.value:null;save();toast(u.recencia_meses?'Exigirá safety pilot a '+u.nombre+' si no ha volado en '+u.recencia_meses+' meses':'Sin restricción para '+u.nombre)}
   if(t.dataset.dlsel){S[t.dataset.dlsel]=+t.value}
