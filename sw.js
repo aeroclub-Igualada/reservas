@@ -2,7 +2,7 @@
 // Primero intenta la red (así siempre se carga la última versión publicada).
 // Si la red tarda más de 4 segundos (poca cobertura en el campo) o no hay conexión,
 // usa la última copia guardada en el móvil.
-const V = 'aeroclub-v9';
+const V = 'aeroclub-v10';
 const BASE = ['./', 'index.html', 'logbook.html', 'escuela.html', 'manifest.webmanifest', 'icon-192.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => {
   self.skipWaiting();
