@@ -1,7 +1,7 @@
 // Service worker: permite instalar la app y abrirla sin conexión.
 // Primero intenta la red (así siempre se carga la última versión publicada);
 // si no hay conexión, usa la última copia guardada.
-const V = 'aeroclub-v6';
+const V = 'aeroclub-v8';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(k => Promise.all(k.filter(x => x !== V).map(x => caches.delete(x)))).then(() => self.clients.claim())
