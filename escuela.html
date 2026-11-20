@@ -412,7 +412,7 @@ function save(extra){
 let pintarPend=false;
 function pintar(){if(!LISTO)return;const ae=document.activeElement;if(ae&&ae.closest&&ae.closest('#app')&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)){pintarPend=true;return}render()}
 document.addEventListener('focusout',()=>{if(pintarPend){pintarPend=false;setTimeout(()=>{const ae=document.activeElement;if(!(ae&&ae.closest&&ae.closest('#app')&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))render();else pintarPend=true},0)}});
-function alCambiar(){if(PEND.size)return;LISTO=true;rebuild();if(!me()){document.getElementById('app').innerHTML='<p class="cargando">Tu ficha de la escuela todavía no está disponible. Habla con tu instructor.<br><br><a href="#" data-act="salir">Salir</a></p>';return}pintar()}
+function alCambiar(){if(PEND.size)return;LISTO=true;rebuild();if(!me()){document.getElementById('app').innerHTML='<p class="cargando">Tu ficha de la escuela todavía no está disponible. Habla con tu instructor.<br><br><a href="#" data-act="salir-ok">Salir</a></p>';return}pintar()}
 function escuchar(esIns){
   UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];
   const L=(c,f)=>{PEND.add(c);UNSUB.push(API.listen(c,f,docs=>{const m=raw(c);m.clear();docs.forEach(d=>m.set(d.id,d.data));PEND.delete(c);alCambiar()},e=>{console.error(c,e);PEND.delete(c);alCambiar()}))};
@@ -460,6 +460,7 @@ async function arrancar(){
 const palKey=()=>'aeroclub_esc_color_'+String(CUENTA&&CUENTA.email||'').toLowerCase();
 function palEsc(){try{return localStorage.getItem(palKey())||'verde'}catch(e){return 'verde'}}
 const PALETAS=[['verde','Verde','#1B7A4A'],['azul','Azul','#1F63B8'],['arena','Arena','#C79A55'],['burdeos','Burdeos','#A3263A'],['violeta','Violeta','#6A3FC4'],['gris','Gris','#5B6673']];
+function modalSalir(){return `<h3>Cerrar sesión</h3><p class="sm" style="margin:4px 0 14px">Para volver a entrar necesitarás tu correo y contraseña.</p><div style="display:grid;gap:8px"><button class="btn" data-act="salir-ok">Cerrar sesión</button><button class="btn ghost" data-act="cerrar">Cancelar</button></div>`}
 function modalPrefs(){const p=palEsc();return `<h3>Preferencias</h3><span class="lbl">Color de la Escuela</span><div class="chips">${PALETAS.map(([k,t,c])=>`<button class="${p===k?'on':''}" data-act="setpal" data-v="${k}"><i class="pal" style="background:${c}"></i>${t}</button>`).join('')}</div><p class="sm">Solo cambia los colores en tu móvil u ordenador. Por defecto, verde.</p><button class="btn" data-act="cerrar">Hecho</button>`}
 function irA(p){try{localStorage.setItem('aeroclub_parte_'+String(CUENTA&&CUENTA.email||'').toLowerCase(),p)}catch(e){}location.href=p==='logbook'?'logbook.html':'index.html'}
 /* ---------- consultas ---------- */
@@ -861,7 +862,7 @@ function render(){
   else if(u.instructor)h+=vInstructor();
   else h+='<p class="cargando">No tienes acceso a la escuela.</p>';
   if(u&&S.view==='inicio'&&!S.sel&&!S.vsel)h+=`<img class="wmk" src="${LOGO}" alt="">`;
-  if(S.modal)h+=`<div class="modal" data-act="fondo"><div data-stop="1">${{clase:modalClase,alta:modalAlta,instructores:modalInstructores,pasar:modalPasar,prefs:modalPrefs}[S.modal.kind]()}</div></div>`;
+  if(S.modal)h+=`<div class="modal" data-act="fondo"><div data-stop="1">${{clase:modalClase,alta:modalAlta,instructores:modalInstructores,pasar:modalPasar,prefs:modalPrefs,salir:modalSalir}[S.modal.kind]()}</div></div>`;
   if(S.toast)h+=`<div class="toast">${esc(S.toast)}</div>`;
   document.body.dataset.tema=palEsc();
   const y=window.scrollY,app=document.getElementById('app');app.innerHTML=h;
@@ -871,7 +872,8 @@ function render(){
 /* ---------- acciones ---------- */
 const act={
  _entrar:e=>{S.user=+e.dataset.id;S.toast='';try{sessionStorage.setItem(KEY+'_u',S.user)}catch(x){}Object.assign(S,{view:'inicio',parte:'escuela',sel:null,vsel:null,f:null,modal:null,tab:'Progreso',ftab:'Vuelo'});if(me().rol==='alumno'&&me().al.estado==='piloto')S.parte='logbook';render();window.scrollTo(0,0)},
- salir:()=>{S.modal=null;try{API.signOut()}catch(x){}setTimeout(()=>location.replace('index.html'),300)},
+ salir:()=>{S.modal={kind:'salir'};render()},
+ 'salir-ok':()=>{S.modal=null;try{API.signOut()}catch(x){}setTimeout(()=>location.replace('index.html'),300)},
  _reset:()=>{if(S.confirm!=='reset'){S.confirm='reset';return toast('Pulsa otra vez «Reiniciar datos» para volver a los datos de ejemplo.')}S.confirm=null;DB=semilla();save();S.user=null;S.modal=null;try{sessionStorage.removeItem(KEY+'_u')}catch(x){}toast('Datos de ejemplo restaurados.')},
  view:e=>{S.view=e.dataset.v;S.sel=null;S.vsel=null;S.nota=null;S.edit=null;render();window.scrollTo(0,0)},
  parte:e=>{const v=e.dataset.v;if(v==='escuela'){S.view='inicio';S.sel=null;S.vsel=null;render();window.scrollTo(0,0);return}irA(v)},

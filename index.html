@@ -502,7 +502,7 @@ const isAdmin=()=>me()&&me().rol==='admin';
 function vLogin(){
   const cab=`<div class="card" style="display:grid;gap:8px;text-align:center;padding:20px"><img src="${LOGO}" alt="Logo del Aeroclub Igualada-Òdena-Anoia" class="logo-big"><h2>Reservas</h2><p class="sm">Aeroclub Igualada-Òdena-Anoia</p></div>`;
   if(S.estado==='cargando'||S.estado==='arranque')return `<div class="wrap">${cab}<p class="sm" style="text-align:center">Cargando…</p></div>`;
-  if(S.estado==='sincuenta'||S.estado==='baja')return `<div class="wrap">${cab}<div class="card" style="display:grid;gap:10px"><h3>${S.estado==='baja'?'Tu cuenta está de baja':'Esta cuenta no está dada de alta'}</h3><p class="sm">${esc(S.email||'')}: ${S.estado==='baja'?'si crees que es un error, habla con un administrador del club.':'pide a un administrador del club que te dé de alta con este correo.'}</p><button class="btn ghost" data-act="logout">Salir</button></div></div>`;
+  if(S.estado==='sincuenta'||S.estado==='baja')return `<div class="wrap">${cab}<div class="card" style="display:grid;gap:10px"><h3>${S.estado==='baja'?'Tu cuenta está de baja':'Esta cuenta no está dada de alta'}</h3><p class="sm">${esc(S.email||'')}: ${S.estado==='baja'?'si crees que es un error, habla con un administrador del club.':'pide a un administrador del club que te dé de alta con este correo.'}</p><button class="btn ghost" data-act="logout-ok">Salir</button></div></div>`;
   const L=S.login||(S.login={});
   if(S.config===null)return `<div class="wrap">${cab}<div class="card" style="display:grid;gap:10px"><h3>Configuración inicial</h3><p class="sm">Todavía no hay ningún administrador. Crea aquí la cuenta del primero; después él dará de alta a los demás socios.</p>
    <div class="field"><label>Tu nombre</label><input data-l="nombre" value="${esc(L.nombre||'')}" autocomplete="name"></div>
@@ -1111,6 +1111,7 @@ function aDescargas(){
 }
 
 /* ---------- render ---------- */
+const modalSalir=()=>`<h3>Cerrar sesión</h3><p class="sm" style="margin:4px 0 14px">Para volver a entrar necesitarás tu correo y contraseña.</p><div style="display:grid;gap:8px"><button class="btn" data-act="logout-ok">Cerrar sesión</button><button class="btn ghost" data-act="cerrar">Cancelar</button></div>`;
 function render(){_EH=new Map();try{render_()}finally{_EH=null}}
 function render_(){
   const app=document.getElementById('app');
@@ -1119,7 +1120,7 @@ function render_(){
   if(S.modo==='admin'&&isAdmin()){body=`<div class="wrap wide">${vAdmin()}</div>`}
   else{const v={inicio:vInicio,calendario:vCalendario,volar:vVolar,logbook:vLogbook,perfil:vPerfil}[S.view]();body=`<div class="wrap">${v}</div>${nav()}`}
   let modal='';
-  if(S.modal){const c={reserva:formReserva,vuelo:modalVuelo,alta:modalAlta,avion:modalAvion,export:modalExport}[S.modal.kind]();modal=`<div class="modal"><div>${c}</div></div>`}
+  if(S.modal){const c={reserva:formReserva,vuelo:modalVuelo,alta:modalAlta,avion:modalAvion,export:modalExport,salir:modalSalir}[S.modal.kind]();modal=`<div class="modal"><div>${c}</div></div>`}
   app.innerHTML=top()+body+modal+(S.toast?`<div class="toast">${esc(S.toast)}</div>`:'');
   if((S.view==='volar'&&S.modo==='socio')||(S.modo==='admin'&&S.adm==='volar'))prevVuelo();
 }
@@ -1145,7 +1146,8 @@ const act={
       {op:'set',col:'usuarios',id:String(id),data:{id,nombre:nom,email:em,rol:'admin',sp:false,idioma:'ca',activo:true}},{op:'set',col:'usuarios_privado',id:String(id),data:{id}}])}
     catch(e){S.arrancando=false;return toast('No se ha podido guardar la configuración inicial ('+(e.code||'error')+'). ¿Están publicadas las reglas de Firestore?')}
     S.arrancando=false;S.login={};alEntrar(em)},
-  logout:()=>{S.login={};API&&API.signOut()},
+  logout:()=>{S.modal={kind:'salir'};render()},
+  'logout-ok':()=>{S.modal=null;S.login={};API&&API.signOut()},
   modo:e=>{S.modo=e.dataset.v;S.filtro='todos';S.form=null;render()},
   view:e=>{S.view=e.dataset.v;S.filtro='todos';if(S.view!=='volar'&&S.form&&S.form.kind==='vuelo')S.form=null;render();window.scrollTo(0,0)},
   adm:e=>{S.adm=e.dataset.v;S.filtro='todos';if(S.form&&S.form.kind==='vuelo')S.form=null;render()},
