@@ -90,7 +90,7 @@ html[data-theme=light] .tg{color:var(--fg);background:color-mix(in srgb,var(--c)
 .fl{display:flex;gap:11px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
 .fd{flex:none;width:52px;text-align:center}.fd b{display:block;font:700 22px/1 var(--f-d)}.fd span{font-size:10.5px;color:var(--muted)}
 .fm{flex:1;min-width:0}.route{font:500 14px var(--f-m)}.sub{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fx{font:700 19px var(--f-d);text-align:right;white-space:nowrap}.reg{font:500 13px var(--f-m);color:var(--fg)}.place{font-weight:600;font-size:15.5px;line-height:1.25}.sub{white-space:normal}
+.fx{font:700 19px var(--f-d);text-align:right;white-space:nowrap}.reg{font:500 13px var(--f-m);color:var(--fg)}.fnc{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font:600 10.5px var(--f-m);letter-spacing:.04em;vertical-align:1px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}.fnc.fn-SPIC{background:#e3f1e8;color:#1f6b45}.fnc.fn-INS,.fnc.fn-DMI{background:#ece6f8;color:#5b3fb0}html[data-theme=dark] .fnc.fn-SPIC{background:#173a28;color:#8fd6ae}html[data-theme=dark] .fnc.fn-INS,html[data-theme=dark] .fnc.fn-DMI{background:#2b2342;color:#c4b2f2}.place{font-weight:600;font-size:15.5px;line-height:1.25}.sub{white-space:normal}
 .fab{position:fixed;right:max(16px,calc(50vw - 280px + 16px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--accent-fg);font-size:30px;border:0;box-shadow:0 4px 14px rgba(0,0,0,.6);z-index:7}
 .calc{display:flex;justify-content:space-between;align-items:baseline;background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:8px 12px;margin-top:12px}
 .calc small{color:var(--muted)}.calc b{font:700 24px var(--f-d);color:var(--accent)}
@@ -189,7 +189,13 @@ const tbadge=t=>{const i=TICON[t];if(!i)return esc(t);return'<svg viewBox="0 0 2
 const tcol=t=>TCOL[t]||'var(--accent)';
 const typeBadge=t=>{if(/^ULM /.test(t))return'<small>ULM</small>'+esc(t.slice(4));const w=t.split(' ');if(w.length>1)return w.map(x=>'<span style="font-size:13px">'+esc(x)+'</span>').join('');return t.length>5?'<span style="letter-spacing:0;font-size:'+(t.length>8?9.5:13)+'px">'+esc(t)+'</span>':esc(t)};
 const dur=m=>m==null||m===''?'—':(+m>=60?Math.floor(m/60)+' h '+pad(m%60)+' min':m+' min');
-const isDual=f=>!!(f.dual||f.withInst||f.fn==='DUAL');
+// Función en el vuelo: PIC (al mando), DUAL (doble mando recibido), SPIC (alumno piloto),
+// INS (instrucción: soy el instructor de un alumno), DMI (doble mando dado a un piloto con licencia), COP.
+const fnOf=f=>['PIC','DUAL','SPIC','INS','DMI','COP'].includes(f.fn)?f.fn:((f.dual||f.withInst)?'DUAL':'PIC');
+const isDual=f=>{const n=fnOf(f);return n==='DUAL'||(n==='SPIC'&&!!f.dual)};
+const fnCols=(f,m)=>{const n=fnOf(f);return{PIC:n==='PIC'?m:0,COP:n==='COP'?m:0,DUAL:isDual(f)?m:0,SPIC:n==='SPIC'?m:0,INS:(n==='INS'||n==='DMI')?m:0}};
+const fnTxt=f=>{const n=fnOf(f);return n==='SPIC'?'SPIC · '+(f.dual?'doble mando':'solo'):n==='INS'?'Instrucción'+(f.dual?' · doble mando':' · instructor en tierra'):n==='DMI'?'Doble mando (instructor)':n==='DUAL'?'Doble mando':n==='COP'?'Copiloto':'PIC'};
+const fnChip=f=>{const n=fnOf(f);const t=n==='SPIC'?'SPIC · '+(f.dual?'DM':'SOLO'):n==='INS'?'FI'+(f.dual?' · DM':' · TIERRA'):n==='DMI'?'DM DADO':n==='DUAL'?'DM':'';return t?'<span class="fnc fn-'+n+'">'+t+'</span>':''};
 const PRE=/^(aer[oó]dromo|aer[oò]drom|aerodrom|aeropuerto|campo de vuelo|campo de aviaci[oó]n|camp de vol|base a[eé]rea|base de hidroaviones|base brica|aeroclub)\s+(?:(?:privado|forestal|municipal|internacional)\s+)?(?:(?:de|del)\s+|d['’])?/i;
 const SMALL=new Set(['de','del','la','el','los','las','y','i','en','al','a','d','l']);
 function tcase(s){s=String(s||'').trim();if(!s||/[a-zà-ÿ]/.test(s))return s;return s.toLowerCase().split(' ').map((w,i)=>(i>0&&SMALL.has(w))?w:w.charAt(0).toUpperCase()+w.slice(1)).join(' ')}
@@ -236,10 +242,14 @@ function vueloClub(v,rol){
   horo:av.matricula?[v.horometro_salida_min,v.horometro_llegada_min,av.tipo_horometro]:null};
  const lec=v.esc_leccion?'L'+v.esc_leccion+(v.esc_leccion_txt?' '+v.esc_leccion_txt:''):'';
  if(lec)f.rem=[f.rem,lec].filter(Boolean).join(' · ');
- if(rol==='ins'){f.fn='INS';f.crew=nombreDe(v.piloto_id)+' (alumno)'}
- else if(v.tipo==='escuela'&&v.esc_modo==='solo'){f.crew='Solo';f.rem=[f.rem,'Solo supervisado · instructor en tierra: '+nombreDe(v.esc_instructor)].filter(Boolean).join(' · ')}
- else if(v.tipo==='escuela'&&v.esc_modo==='examen'){f.crew=(v.esc_examinador||'Examinador')+' (examinador)';f.rem=[f.rem,'Vuelo de examen'].filter(Boolean).join(' · ')}
- else if(v.tipo==='escuela'){f.dual=true;f.withInst=true;f.inst=nombreDe(v.safety_pilot_id||v.esc_instructor)}
+ // Función automática: el alumno vuela como SPIC (con el instructor anotado); el instructor anota
+ // instrucción (FI) con el alumno; si iba a bordo, los dos llevan además doble mando.
+ if(rol==='ins'&&v.tipo==='escuela'){const solo=v.esc_modo==='solo';f.fn='INS';f.dual=!solo;f.crew=nombreDe(v.piloto_id);if(solo)f.rem=[f.rem,'Alumno solo · instructor en tierra'].filter(Boolean).join(' · ')}
+ else if(rol==='ins'){f.fn='DMI';f.dual=true;f.crew=nombreDe(v.piloto_id)}
+ else if(v.tipo==='escuela'&&v.esc_modo==='solo'){f.fn='SPIC';f.dual=false;f.inst=nombreDe(v.esc_instructor);f.rem=[f.rem,'Solo supervisado · instructor en tierra'].filter(Boolean).join(' · ')}
+ else if(v.tipo==='escuela'&&v.esc_modo==='examen'){f.fn='SPIC';f.dual=true;f.inst=(v.esc_examinador||'Examinador')+' (examinador)';f.rem=[f.rem,'Vuelo de examen'].filter(Boolean).join(' · ')}
+ else if(v.tipo==='escuela'){f.fn='SPIC';f.dual=true;f.inst=nombreDe(v.esc_instructor||v.safety_pilot_id)}
+ else if(v.dm_instructor){f.fn='DUAL';f.dual=true;f.withInst=true;f.inst=nombreDe(v.dm_instructor)}
  else if(v.safety_pilot_id)f.crew=nombreDe(v.safety_pilot_id)+' (safety pilot)';
  else f.crew=v.acompanante?'Acompañado':'Solo';
  return f}
@@ -253,7 +263,10 @@ function rebuild(){
  const nb=DB.books.length;
  BASES=new Map();const conCambios=f=>{BASES.set(f.id,JSON.parse(JSON.stringify(f)));const o=OVL.get(f.id);if(o&&o.campos)Object.assign(f,JSON.parse(JSON.stringify(o.campos)));return f};
  CLUB_V.forEach(v=>{if(v.estado!=='anulado')DB.flights.push(conCambios(vueloClub(v,'pil')))});
- CLUB_I.forEach(v=>{if(v.estado!=='anulado'&&v.tipo==='escuela'&&v.esc_modo!=='solo'&&v.esc_modo!=='examen'&&v.piloto_id!==YO)DB.flights.push(conCambios(vueloClub(v,'ins')))});
+ // vuelos en los que fui instructor: clases de escuela (a bordo o en tierra) y doble mando dado
+ CLUB_I.forEach(v=>{if(v.estado==='anulado'||v.piloto_id===YO)return;
+   const esc=v.tipo==='escuela'&&v.esc_modo!=='examen'&&(v.esc_instructor===YO||(v.esc_modo!=='solo'&&v.safety_pilot_id===YO));
+   if(esc||v.dm_instructor===YO)DB.flights.push(conCambios(vueloClub(v,'ins')))});
  DB.books=DB.books.filter(b=>!(b.club&&!DB.flights.some(f=>f.book===b.id)&&DB.books.some(x=>x!==b&&x.type===b.type)));
  if(DB.books.length!==nb)cambio=true;
  return cambio}
@@ -296,7 +309,9 @@ function escuchar(){
  L('aviones',(ok,er)=>API.listen('aviones',null,docs=>{CLUB_AV=docs.map(x=>Object.assign({},x.data,{matricula:String(x.data.matricula||'').toUpperCase()}));ok()},er));
  L('usuarios',(ok,er)=>API.listen('usuarios',null,docs=>{USR.clear();docs.forEach(x=>USR.set(String(x.data.id),x.data));ok()},er));
  L('club',(ok,er)=>API.listen('vuelos',{field:'piloto_id',value:yo},docs=>{CLUB_V.clear();docs.forEach(x=>CLUB_V.set(x.id,x.data));ok()},er));
- L('ins',(ok,er)=>API.listen('vuelos',{field:'safety_pilot_id',value:yo},docs=>{CLUB_I.clear();docs.forEach(x=>CLUB_I.set(x.id,x.data));ok()},er));
+ // vuelos donde fui instructor: a bordo (safety_pilot_id), en tierra (esc_instructor) o doble mando dado (dm_instructor)
+ {const P=[new Map(),new Map(),new Map()],un=()=>{CLUB_I.clear();P.forEach(m=>m.forEach((v,k)=>CLUB_I.set(k,v)))};
+  ['safety_pilot_id','esc_instructor','dm_instructor'].forEach((fld,i)=>L('ins'+i,(ok,er)=>API.listen('vuelos',{field:fld,value:yo},docs=>{P[i]=new Map(docs.map(x=>[x.id,x.data]));un();ok()},er)))}
 }
 async function crearApiFirebase(){
  const b='https://www.gstatic.com/firebasejs/'+FB_VERSION+'/';
@@ -437,7 +452,7 @@ function vBook(){const b=book();if(!b){S.screen='books';return vBooks()}
  if(S.tab==='flights')h+=tFlights(b);else if(S.tab==='search')h+=tSearch(b);else if(S.tab==='summary')h+=tSummary(b);else h+=tExport(b);
  return h+'</main>'+(S.tab==='flights'?'<button class="fab" data-a="addf" aria-label="Nuevo vuelo">＋</button>':'')+nav()}
 function flItem(f){const d=fdate(f.date);
- return'<li><button class="fl" data-a="editf" data-v="'+f.id+'"><div class="fd"><b>'+d.d+'</b><span>'+d.m+'</span></div><div class="fm"><div class="place">'+esc(isFreeBook(f.book)?(f.dep||'—'):placeLabel(f.dep))+' → '+esc(isFreeBook(f.book)?(f.arr||'—'):placeLabel(f.arr))+'</div><div class="sub"><b class="reg">'+esc(f.reg||'sin matrícula')+'</b>'+(f.club?'<span class="clubtag">'+LOCK+' CLUB</span>':'')+'</div></div><div class="fx">'+dur(f.min)+'</div></button></li>'}
+ return'<li><button class="fl" data-a="editf" data-v="'+f.id+'"><div class="fd"><b>'+d.d+'</b><span>'+d.m+'</span></div><div class="fm"><div class="place">'+esc(isFreeBook(f.book)?(f.dep||'—'):placeLabel(f.dep))+' → '+esc(isFreeBook(f.book)?(f.arr||'—'):placeLabel(f.arr))+'</div><div class="sub"><b class="reg">'+esc(f.reg||'sin matrícula')+'</b>'+fnChip(f)+(f.club?'<span class="clubtag">'+LOCK+' CLUB</span>':'')+'</div></div><div class="fx">'+dur(f.min)+'</div></button></li>'}
 function tFlights(b){const l=bookFlights(b.id);const y=Date.now()-365*864e5;const l12=l.filter(f=>f.date&&new Date(f.date).getTime()>=y);
  let h='<div class="tot"><div><small>Total</small><b>'+hm(sumMin(l))+'</b><i>'+nf(sumMin(l))+' min</i></div><div><small>Últimos 12 meses</small><b>'+hm(sumMin(l12))+'</b><i>'+nf(sumMin(l12))+' min</i></div></div>';
  h+=l.length?'<ul class="fls">'+l.map(flItem).join('')+'</ul>':'<div class="empty">Todavía no hay vuelos.<br>Pulsa + para anotar el primero.</div>';return h}
@@ -457,7 +472,7 @@ function tSummary(b){const l=bookFlights(b.id);if(!l.length)return'<div class="e
  l.forEach(f=>{const k=(f.date||'').slice(0,7),o=mo.find(x=>x.k===k);if(o)o.v+=+f.min||0});const mx=Math.max(1,...mo.map(x=>x.v));
  const grp=fn=>{const m={};l.forEach(f=>{const k=fn(f);if(k)m[k]=(m[k]||0)+(+f.min||0)});return Object.entries(m).sort((a,b)=>b[1]-a[1])};
  const kv=a=>'<ul class="kv">'+a.map(x=>'<li><span>'+esc(x[0])+'</span><b>'+hm(x[1])+'</b></li>').join('')+'</ul>';
- return'<div class="tot"><div><small>Total</small><b>'+hm(sumMin(l))+'</b><i>'+nf(sumMin(l))+' min</i></div><div><small>Aterrizajes</small><b>'+nf(ld)+'</b></div></div><label class="lbl">Minutos de vuelo por mes (últimos 12 meses)</label><div class="bars">'+mo.map(x=>'<div class="bar" title="'+x.v+' min"><i style="height:'+(x.v/mx*100)+'%"></i><span>'+x.m+'</span></div>').join('')+'</div>'+'<label class="lbl">Por aeronave</label>'+kv(grp(f=>f.reg))+'<label class="lbl">Por año</label>'+kv(grp(f=>(f.date||'').slice(0,4)))}
+ return'<div class="tot"><div><small>Total</small><b>'+hm(sumMin(l))+'</b><i>'+nf(sumMin(l))+' min</i></div><div><small>Aterrizajes</small><b>'+nf(ld)+'</b></div></div><label class="lbl">Minutos de vuelo por mes (últimos 12 meses)</label><div class="bars">'+mo.map(x=>'<div class="bar" title="'+x.v+' min"><i style="height:'+(x.v/mx*100)+'%"></i><span>'+x.m+'</span></div>').join('')+'</div>'+'<label class="lbl">Por función</label>'+kv((()=>{const t={PIC:0,DUAL:0,SPIC:0,INS:0,DMI:0,COP:0};l.forEach(f=>{const n=fnOf(f),m=+f.min||0;t[n]+=m});return [['Piloto al mando (PIC)',t.PIC],['Doble mando recibido',t.DUAL],['Alumno piloto (SPIC)',t.SPIC],['Instrucción dada (FI)',t.INS],['Doble mando dado (instructor)',t.DMI],['Copiloto',t.COP]].filter(x=>x[1]>0)})())+'<label class="lbl">Por aeronave</label>'+kv(grp(f=>f.reg))+'<label class="lbl">Por año</label>'+kv(grp(f=>(f.date||'').slice(0,4)))}
 function tExport(b,p){p=p||'';
  const chip=(k,t)=>'<button class="chip '+(S.per===k?'on':'')+'" data-a="per" data-v="'+k+'">'+t+'</button>';
  return'<label class="lbl">Periodo</label><div class="chips">'+chip('all','Todo')+chip('year','Este año')+chip('custom','Personalizado')+'</div>'+(S.per==='custom'?'<div class="row2"><div><label class="lbl">Desde</label><input class="inp" type="date" id="pfrom" value="'+S.pfrom+'"></div><div><label class="lbl">Hasta</label><input class="inp" type="date" id="pto" value="'+S.pto+'"></div></div>':'')+
@@ -465,7 +480,7 @@ function tExport(b,p){p=p||'';
 function periodFlights(b){let l=bookFlights(b.id).slice().reverse();if(S.per==='year')l=l.filter(f=>(f.date||'').startsWith(String(new Date().getFullYear())));if(S.per==='custom'){if(S.pfrom)l=l.filter(f=>f.date>=S.pfrom);if(S.pto)l=l.filter(f=>f.date<=S.pto)}return l}
 
 /* ---------- formulario ---------- */
-function newFlight(){const base=isFreeBook(S.book)?'':((DB.favs||[])[0]||'');return{id:uid(),book:S.book,date:today(),reg:'',dep:base,depT:'',arr:base,arrT:'',min:null,man:false,ldD:1,ldN:0,pic:DB.owner||'',crew:'Solo',dual:false,withInst:false,inst:'',rem:'',ifr:'',night:'',multi:false,me:false,trD:'',trT:'',trM:''}}
+function newFlight(){const base=isFreeBook(S.book)?'':((DB.favs||[])[0]||'');return{id:uid(),book:S.book,date:today(),reg:'',dep:base,depT:'',arr:base,arrT:'',min:null,man:false,ldD:1,ldN:0,pic:DB.owner||'',fn:'PIC',crew:'Solo',dual:false,withInst:false,inst:'',rem:'',ifr:'',night:'',multi:false,me:false,trD:'',trT:'',trM:''}}
 const picName=f=>(!f.pic||f.pic==='Propio')?(DB.owner||'Propio'):f.pic;
 function placeInfoHTML(v){v=(v||'').trim();if(!v)return'';const e=findEntry(v);if(e)return'<b>'+esc(e.n)+'</b>'+(e.m?' · '+esc(e.m):'');const c=DB.customAero.find(x=>x.code===v.toUpperCase());return c&&c.name?'<b>'+esc(c.name)+'</b>':''}
 function updatePlaceInfo(){['dep','arr'].forEach(k=>{const e=$('#pi_'+k);if(e&&S.f)e.innerHTML=placeInfoHTML(S.f[k])})}
@@ -484,11 +499,18 @@ function vForm(){const f=S.f,calc=diffMin(f.depT,f.arrT);const free=isFreeBook(f
  '<div class="row2" style="margin-top:8px"><div>'+tb('depT')+'</div><div>'+tb('arrT')+'</div></div>'+
  '<div class="calc"><small>Tiempo de vuelo</small><b>'+dur(min)+'</b></div>'+(S.showMan||f.man?'<label class="lbl">Tiempo de vuelo a mano <small>(minutos; sustituye al calculado)</small></label><input class="inp" inputmode="numeric" data-f="min" value="'+(f.man?esc(f.min):'')+'" placeholder="Minutos">':'<button class="more" style="margin-top:4px" data-a="man">No tengo las horas: poner el tiempo a mano</button>')+
  '<div class="row2"><div><label class="lbl">Aterrizajes día</label>'+st('ldD',f.ldD)+'</div><div><label class="lbl">Aterrizajes noche</label>'+st('ldN',f.ldN)+'</div></div>'+
- '<label class="lbl">Piloto al mando</label><div class="inp" style="display:flex;justify-content:space-between;gap:8px"><span>'+esc(DB.owner||'Sin nombre')+'</span>'+(DB.owner?'':'<button class="ib" data-a="settings">Ponerlo en Ajustes</button>')+'</div>'+
- '<label class="lbl">Crew <small>(opcional)</small></label>'+cb('crew','Solo / elige acompañante','crew')+'<p class="foot" style="margin:6px 2px 0">Solo sirve para saber si volaste solo o acompañado. No cuenta en las estadísticas.</p>'+
+ (()=>{const n=fnOf(f);if(f.club)return'<label class="lbl">Función en este vuelo</label><div class="inp">'+esc(fnTxt(f))+(f.inst&&(n==='SPIC'||n==='DUAL')?' · instructor: '+esc(f.inst):'')+(f.crew&&(n==='INS'||n==='DMI')?' · '+esc(f.crew):'')+'</div><p class="foot" style="margin:6px 2px 0">La pone el club según el tipo de vuelo.</p>';const fc=(k,t)=>'<button class="chip '+(n===k?'on':'')+'" data-a="fnsel" data-v="'+k+'">'+t+'</button>';
+  let h='<label class="lbl">Función en este vuelo</label><div class="chips">'+fc('PIC','Piloto al mando')+fc('DUAL','Doble mando')+fc('INS','Instrucción (soy el instructor)')+fc('DMI','Doble mando (soy el instructor)')+fc('SPIC','Alumno (SPIC)')+'</div>';
+  if(n==='PIC')h+='<div class="inp" style="display:flex;justify-content:space-between;gap:8px;margin-top:8px"><span>'+esc(DB.owner||'Sin nombre')+'</span>'+(DB.owner?'':'<button class="ib" data-a="settings">Ponerlo en Ajustes</button>')+'</div>';
+  if(n==='DUAL'||n==='SPIC')h+='<label class="lbl">Instructor</label><input class="inp" data-f="inst" placeholder="Nombre y apellidos del instructor" value="'+esc(f.inst)+'" autocomplete="off">';
+  if(n==='INS'||n==='DMI')h+='<label class="lbl">'+(n==='INS'?'Alumno':'Piloto que recibe el doble mando')+'</label><input class="inp" data-f="crew" placeholder="Nombre y apellidos" value="'+esc(f.crew)+'" autocomplete="off">';
+  if(n==='SPIC'||n==='INS')h+='<div class="chips" style="margin-top:8px"><button class="chip '+(f.dual?'on':'')+'" data-a="spicm" data-v="dm">Instructor a bordo (doble mando)</button><button class="chip '+(!f.dual?'on':'')+'" data-a="spicm" data-v="solo">'+(n==='SPIC'?'Solo (instructor en tierra)':'Alumno solo (yo en tierra)')+'</button></div>';
+  const ay={PIC:'Vuelo normal: cuenta como piloto al mando.',DUAL:'Recibes doble mando de un instructor (eres piloto con licencia): cuenta como doble mando.',INS:'Das clase a un alumno de escuela: cuenta como instrucción.',DMI:'Das doble mando a un piloto que ya tiene licencia: cuenta como doble mando dado.',SPIC:'Eres alumno: cuenta como SPIC, con tu instructor anotado.'};
+  return h+'<p class="foot" style="margin:6px 2px 0">'+ay[n]+'</p>'})()+
+ (['INS','DMI'].includes(fnOf(f))?'':'<label class="lbl">Crew <small>(opcional)</small></label>'+cb('crew','Solo / elige acompañante','crew')+'<p class="foot" style="margin:6px 2px 0">Solo sirve para saber si volaste solo o acompañado. No cuenta en las estadísticas.</p>')+
  '<label class="lbl">Observaciones</label><textarea class="inp" data-f="rem" placeholder="'+((f.dep==='ZZZZ'||f.arr==='ZZZZ')?'Indica dónde despegaste o aterrizaste (ZZZZ)…':'Circuitos, viento…')+'">'+esc(f.rem)+'</textarea>'+
- '<button class="more" data-a="more">'+(S.more?'▾':'▸')+' Más datos (opcionales): instructor, doble mando, noche, IFR, entrenador sintético</button>'+
- (S.more?'<div class="chips" style="margin-top:4px"><button class="chip '+(f.dual?'on':'')+'" data-a="tg" data-k="dual">Doble mando</button><button class="chip '+(f.withInst?'on':'')+'" data-a="tg" data-k="withInst">Con instructor</button></div><label class="lbl">Nombre del instructor</label><input class="inp" data-f="inst" placeholder="Nombre y apellidos" value="'+esc(f.inst)+'" autocomplete="off"><div class="row2"><div><label class="lbl">Minutos de noche</label><input class="inp" inputmode="numeric" data-f="night" value="'+esc(f.night)+'"></div><div><label class="lbl">Minutos IFR</label><input class="inp" inputmode="numeric" data-f="ifr" value="'+esc(f.ifr)+'"></div></div><div class="chips" style="margin-top:12px"><button class="chip '+(f.me?'on':'')+'" data-a="tg" data-k="me">Multimotor (ME)</button><button class="chip '+(f.multi?'on':'')+'" data-a="tg" data-k="multi">Multipiloto</button></div><label class="lbl">Entrenador sintético</label><div class="row2"><input class="inp" type="date" data-f="trD" value="'+esc(f.trD)+'"><input class="inp" data-f="trT" placeholder="Tipo" value="'+esc(f.trT)+'"></div><div style="height:8px"></div><input class="inp" inputmode="numeric" data-f="trM" placeholder="Total (minutos)" value="'+esc(f.trM)+'">':'')+
+ '<button class="more" data-a="more">'+(S.more?'▾':'▸')+' Más datos (opcionales): noche, IFR, multimotor, entrenador sintético</button>'+
+ (S.more?'<div class="row2"><div><label class="lbl">Minutos de noche</label><input class="inp" inputmode="numeric" data-f="night" value="'+esc(f.night)+'"></div><div><label class="lbl">Minutos IFR</label><input class="inp" inputmode="numeric" data-f="ifr" value="'+esc(f.ifr)+'"></div></div><div class="chips" style="margin-top:12px"><button class="chip '+(f.me?'on':'')+'" data-a="tg" data-k="me">Multimotor (ME)</button><button class="chip '+(f.multi?'on':'')+'" data-a="tg" data-k="multi">Multipiloto</button></div><label class="lbl">Entrenador sintético</label><div class="row2"><input class="inp" type="date" data-f="trD" value="'+esc(f.trD)+'"><input class="inp" data-f="trT" placeholder="Tipo" value="'+esc(f.trT)+'"></div><div style="height:8px"></div><input class="inp" inputmode="numeric" data-f="trM" placeholder="Total (minutos)" value="'+esc(f.trM)+'">':'')+
  (S.editing?'<button class="btn danger" data-a="delf">Borrar vuelo</button>':'')+'</main>'+
  '<div class="savebar"><button class="btn" data-a="savef">Guardar vuelo</button></div>'}
 function saveFlight(){const f=S.f;
@@ -628,22 +650,22 @@ function zipStore(files){const enc=new TextEncoder(),parts=[],cen=[];let off=0;
   cen.push(new Uint8Array(c),n);off+=h.length+n.length+d.length});
  let cs=0;cen.forEach(x=>cs+=x.length);const e=[];w32(e,0x06054b50);w16(e,0);w16(e,0);w16(e,files.length);w16(e,files.length);w32(e,cs);w32(e,off);w16(e,0);
  return new Blob([...parts,...cen,new Uint8Array(e)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
-function xlsx(b){b=b||book();const hd=['Fecha','Matrícula','Salida','Hora salida','Llegada','Hora llegada','Minutos','Aterr. día','Aterr. noche','Doble mando','Instructor','PIC','Crew','Min. noche','Min. IFR','Multimotor','Multipiloto','Sim. fecha','Sim. tipo','Sim. min','Observaciones'];
+function xlsx(b){b=b||book();const hd=['Fecha','Matrícula','Salida','Hora salida','Llegada','Hora llegada','Minutos','Aterr. día','Aterr. noche','Doble mando','Instructor','PIC','Crew','Min. noche','Min. IFR','Multimotor','Multipiloto','Sim. fecha','Sim. tipo','Sim. min','Observaciones','Función'];
  const NUM=[6,7,8,13,14,19],DAT=[0,17];
  const L=i=>String.fromCharCode(65+i),X=s=>String(s==null?'':s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
  const ser=s=>{const m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(s||'');return m?Math.round(Date.UTC(+m[1],+m[2]-1,+m[3])/86400000)+25569:null};
  const fl=periodFlights(b);let r=1;
  let rows='<row r="1" ht="30" customHeight="1">'+hd.map((h,i)=>'<c r="'+L(i)+'1" s="1" t="inlineStr"><is><t>'+X(h)+'</t></is></c>').join('')+'</row>';
  const tot={};NUM.forEach(i=>tot[i]=0);
- fl.forEach(f=>{r++;const v=[f.date,f.reg,f.dep,f.depT,f.arr,f.arrT,f.min,f.ldD,f.ldN,isDual(f)?'Sí':'',f.inst||'',picName(f),f.crew,f.night,f.ifr,f.me?'Sí':'',f.multi?'Sí':'',f.trD,f.trT,f.trM,f.rem];
+ fl.forEach(f=>{r++;const v=[f.date,f.reg,f.dep,f.depT,f.arr,f.arrT,f.min,f.ldD,f.ldN,isDual(f)?'Sí':'',f.inst||'',picName(f),f.crew,f.night,f.ifr,f.me?'Sí':'',f.multi?'Sí':'',f.trD,f.trT,f.trM,f.rem,fnTxt(f)];
   rows+='<row r="'+r+'">'+v.map((x,i)=>{const a=L(i)+r;if(x===''||x==null)return'';
    if(DAT.includes(i)){const n=ser(x);if(n!=null)return'<c r="'+a+'" s="2"><v>'+n+'</v></c>'}
    if(NUM.includes(i)&&!isNaN(Number(x))){tot[i]+=Number(x);return'<c r="'+a+'"><v>'+Number(x)+'</v></c>'}
    return'<c r="'+a+'" t="inlineStr"><is><t xml:space="preserve">'+X(x)+'</t></is></c>'}).join('')+'</row>'});
  const last=r;r+=2;
  rows+='<row r="'+r+'"><c r="A'+r+'" s="3" t="inlineStr"><is><t>TOTAL</t></is></c>'+NUM.filter(i=>i!==19||true).map(i=>'<c r="'+L(i)+r+'" s="3"><f>SUM('+L(i)+'2:'+L(i)+last+')</f><v>'+tot[i]+'</v></c>').join('')+'</row>';
- const W=[12,11,22,11,22,12,10,10,12,12,18,20,20,11,10,11,12,12,12,10,34];
- const sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+W.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>'+rows+'</sheetData><autoFilter ref="A1:U'+Math.max(last,1)+'"/></worksheet>';
+ const W=[12,11,22,11,22,12,10,10,12,12,18,20,20,11,10,11,12,12,12,10,34,24];
+ const sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+W.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>'+rows+'</sheetData><autoFilter ref="A1:V'+Math.max(last,1)+'"/></worksheet>';
  const H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',NS='http://schemas.openxmlformats.org/',
  styles=H+'<styleSheet xmlns="'+NS+'spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9E2F3"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
  const nm=X((b.type+' '+(DB.owner||'')).trim()).slice(0,31)||'Vuelos';
@@ -655,29 +677,29 @@ function xlsx(b){b=b||book();const hd=['Fecha','Matrícula','Salida','Hora salid
   ['xl/styles.xml',styles],['xl/worksheets/sheet1.xml',sheet]]);
  shareOrDownload(fileBase(b)+'.xlsx',blob,blob.type)}
 
-function csv(b){b=b||book();const rows=[['Fecha','Matricula','Salida','Hora salida','Llegada','Hora llegada','Minutos','Aterr dia','Aterr noche','Doble mando','Instructor','PIC','Crew','Min noche','Min IFR','Multimotor','Multipiloto','Sint fecha','Sint tipo','Sint min','Observaciones']];
- periodFlights(b).forEach(f=>rows.push([f.date,f.reg,f.dep,f.depT,f.arr,f.arrT,f.min,f.ldD,f.ldN,isDual(f)?'Si':'',f.inst||'',picName(f),f.crew,f.night,f.ifr,f.me?'Si':'',f.multi?'Si':'',f.trD,f.trT,f.trM,f.rem]));
+function csv(b){b=b||book();const rows=[['Fecha','Matricula','Salida','Hora salida','Llegada','Hora llegada','Minutos','Aterr dia','Aterr noche','Doble mando','Instructor','PIC','Crew','Min noche','Min IFR','Multimotor','Multipiloto','Sint fecha','Sint tipo','Sint min','Observaciones','Funcion']];
+ periodFlights(b).forEach(f=>rows.push([f.date,f.reg,f.dep,f.depT,f.arr,f.arrT,f.min,f.ldD,f.ldN,isDual(f)?'Si':'',f.inst||'',picName(f),f.crew,f.night,f.ifr,f.me?'Si':'',f.multi?'Si':'',f.trD,f.trT,f.trM,f.rem,fnTxt(f)]));
  const t='﻿'+rows.map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(';')).join('\r\n');shareOrDownload(fileBase(b)+'.csv',t,'text/csv')}
 const fileBase=b=>('Logbook '+b.type+' '+today()+(DB.owner?' '+DB.owner:'')).replace(/[\\/:*?"<>|]+/g,'').trim();
-const obs=f=>(f.inst?'Instructor: '+f.inst+'. ':'')+(f.crew&&f.crew!=='Solo'?(f.crew==='Acompañado'?'Acompañado. ':'Con '+f.crew+'. '):'')+(f.rem||'');
+const obs=f=>{const n=fnOf(f);return (f.inst&&(n==='DUAL'||n==='SPIC')?'Instructor: '+f.inst+'. ':'')+(f.crew&&f.crew!=='Solo'?(n==='INS'?'Alumno: '+f.crew+'. ':n==='DMI'?'Doble mando a: '+f.crew+'. ':f.crew==='Acompañado'?'Acompañado. ':'Con '+f.crew+'. '):'')+(f.rem||'')};
 function doPrint(b,l){if(!l.length){toast('No hay vuelos en ese periodo');return}
  const R=14,pages=[];for(let i=0;i<l.length;i+=R)pages.push(l.slice(i,i+R));
- const cols=f=>{const air=DB.aircraft.find(a=>a.reg===f.reg);const me=f.me||(air&&air.eng==='multi');const m=+f.min||0;return{se:(!f.multi&&!me)?m:0,me:(!f.multi&&me)?m:0,mp:f.multi?m:0,tot:m,ldD:+f.ldD||0,ldN:+f.ldN||0,night:+f.night||0,ifr:+f.ifr||0,PIC:(!isDual(f)&&f.fn!=='COP'&&f.fn!=='INS')?m:0,COP:f.fn==='COP'?m:0,DUAL:isDual(f)?m:0,INS:f.fn==='INS'?m:0,sint:+f.trM||0,air}};
- const keys=['se','me','mp','tot','ldD','ldN','night','ifr','PIC','COP','DUAL','INS','sint'];const isl=['ldD','ldN'];
+ const cols=f=>{const air=DB.aircraft.find(a=>a.reg===f.reg);const me=f.me||(air&&air.eng==='multi');const m=+f.min||0;return{se:(!f.multi&&!me)?m:0,me:(!f.multi&&me)?m:0,mp:f.multi?m:0,tot:m,ldD:+f.ldD||0,ldN:+f.ldN||0,night:+f.night||0,ifr:+f.ifr||0,...fnCols(f,m),sint:+f.trM||0,air}};
+ const keys=['se','me','mp','tot','ldD','ldN','night','ifr','PIC','COP','DUAL','SPIC','INS','sint'];const isl=['ldD','ldN'];
  const fm=(k,v)=>isl.includes(k)?(v||''):hmc(v);
  let prev={};keys.forEach(k=>prev[k]=0);let out='';
  pages.forEach((pg,pi)=>{const page={};keys.forEach(k=>page[k]=0);
   const rows=pg.map(f=>{const c=cols(f);keys.forEach(k=>page[k]+=c[k]);
-   if(S.fmt==='simple')return'<tr class="r"><td>'+fdateL(f.date)+'</td><td>'+esc(f.dep)+'</td><td>'+esc(f.depT)+'</td><td>'+esc(f.arr)+'</td><td>'+esc(f.arrT)+'</td><td>'+esc(f.reg)+'</td><td>'+hmc(c.tot)+'</td><td>'+(c.ldD+c.ldN||'')+'</td><td class="l">'+esc(isDual(f)?'Doble mando':'PIC')+'</td><td class="l">'+esc(picName(f))+'</td><td class="l">'+esc(obs(f))+'</td></tr>';
-   return'<tr class="r"><td>'+fdateL(f.date)+'</td><td>'+esc(f.dep)+'</td><td>'+esc(f.depT)+'</td><td>'+esc(f.arr)+'</td><td>'+esc(f.arrT)+'</td><td>'+esc(c.air&&c.air.model||'')+'</td><td>'+esc(f.reg)+'</td><td>'+hmc(c.se)+'</td><td>'+hmc(c.me)+'</td><td>'+hmc(c.mp)+'</td><td>'+hmc(c.tot)+'</td><td class="l">'+esc(picName(f))+'</td><td>'+(c.ldD||'')+'</td><td>'+(c.ldN||'')+'</td><td>'+hmc(c.night)+'</td><td>'+hmc(c.ifr)+'</td><td>'+hmc(c.PIC)+'</td><td>'+hmc(c.COP)+'</td><td>'+hmc(c.DUAL)+'</td><td>'+hmc(c.INS)+'</td><td>'+esc(fdateL(f.trD))+'</td><td>'+esc(f.trT)+'</td><td>'+hmc(c.sint)+'</td><td class="l">'+esc(obs(f))+'</td></tr>'}).join('');
-  const blanks=Array.from({length:R-pg.length},()=>'<tr class="r">'+'<td></td>'.repeat(S.fmt==='simple'?11:24)+'</tr>').join('');
+   if(S.fmt==='simple')return'<tr class="r"><td>'+fdateL(f.date)+'</td><td>'+esc(f.dep)+'</td><td>'+esc(f.depT)+'</td><td>'+esc(f.arr)+'</td><td>'+esc(f.arrT)+'</td><td>'+esc(f.reg)+'</td><td>'+hmc(c.tot)+'</td><td>'+(c.ldD+c.ldN||'')+'</td><td class="l">'+esc(fnTxt(f))+'</td><td class="l">'+esc(picName(f))+'</td><td class="l">'+esc(obs(f))+'</td></tr>';
+   return'<tr class="r"><td>'+fdateL(f.date)+'</td><td>'+esc(f.dep)+'</td><td>'+esc(f.depT)+'</td><td>'+esc(f.arr)+'</td><td>'+esc(f.arrT)+'</td><td>'+esc(c.air&&c.air.model||'')+'</td><td>'+esc(f.reg)+'</td><td>'+hmc(c.se)+'</td><td>'+hmc(c.me)+'</td><td>'+hmc(c.mp)+'</td><td>'+hmc(c.tot)+'</td><td class="l">'+esc(picName(f))+'</td><td>'+(c.ldD||'')+'</td><td>'+(c.ldN||'')+'</td><td>'+hmc(c.night)+'</td><td>'+hmc(c.ifr)+'</td><td>'+hmc(c.PIC)+'</td><td>'+hmc(c.COP)+'</td><td>'+hmc(c.DUAL)+'</td><td>'+hmc(c.SPIC)+'</td><td>'+hmc(c.INS)+'</td><td>'+esc(fdateL(f.trD))+'</td><td>'+esc(f.trT)+'</td><td>'+hmc(c.sint)+'</td><td class="l">'+esc(obs(f))+'</td></tr>'}).join('');
+  const blanks=Array.from({length:R-pg.length},()=>'<tr class="r">'+'<td></td>'.repeat(S.fmt==='simple'?11:25)+'</tr>').join('');
   const tot={};keys.forEach(k=>tot[k]=page[k]+prev[k]);
   let head,foot;
   if(S.fmt==='simple'){head='<tr><th>Fecha</th><th>Salida</th><th>Hora</th><th>Llegada</th><th>Hora</th><th>Matrícula</th><th>Tiempo</th><th>Aterr.</th><th>Función</th><th>PIC</th><th>Observaciones</th></tr>';
    const lab=(t,o)=>'<tr class="t"><td colspan="6" style="text-align:right">'+t+'</td><td>'+hmc(o.tot)+'</td><td>'+((o.ldD+o.ldN)||'')+'</td><td colspan="3"></td></tr>';
    foot=lab('Total de esta página',page)+lab('Total desde páginas previas',prev)+lab('Tiempo total',tot)}
-  else{head='<tr><th rowspan="2">1<br>Fecha</th><th colspan="2">2<br>Salida</th><th colspan="2">3<br>Llegada</th><th colspan="2">4<br>Aeronave</th><th colspan="3">5<br>Tiempo monopiloto / multipiloto</th><th rowspan="2">6<br>Tiempo total de vuelo</th><th rowspan="2">7<br>Nombre del PIC</th><th colspan="2">8<br>Aterrizajes</th><th colspan="2">9<br>Hora y condición</th><th colspan="4">10<br>Función</th><th colspan="3">11<br>Entrenador sintético</th><th rowspan="2">12<br>Observaciones</th></tr><tr><th>Lugar</th><th>Hora</th><th>Lugar</th><th>Hora</th><th>Modelo</th><th>Matríc.</th><th>SE</th><th>ME</th><th>MP</th><th>Día</th><th>Noche</th><th>Noche</th><th>IFR</th><th>PIC</th><th>COP</th><th>Dual</th><th>Inst.</th><th>Fecha</th><th>Tipo</th><th>Total</th></tr>';
-   const lab=(t,o,bold)=>'<tr class="t"><td colspan="7" style="text-align:right">'+t+'</td>'+['se','me','mp','tot'].map(k=>'<td>'+fm(k,o[k])+'</td>').join('')+'<td></td>'+['ldD','ldN','night','ifr','PIC','COP','DUAL','INS'].map(k=>'<td>'+fm(k,o[k])+'</td>').join('')+'<td colspan="2"></td><td>'+fm('sint',o.sint)+'</td><td></td></tr>';
+  else{head='<tr><th rowspan="2">1<br>Fecha</th><th colspan="2">2<br>Salida</th><th colspan="2">3<br>Llegada</th><th colspan="2">4<br>Aeronave</th><th colspan="3">5<br>Tiempo monopiloto / multipiloto</th><th rowspan="2">6<br>Tiempo total de vuelo</th><th rowspan="2">7<br>Nombre del PIC</th><th colspan="2">8<br>Aterrizajes</th><th colspan="2">9<br>Hora y condición</th><th colspan="5">10<br>Función</th><th colspan="3">11<br>Entrenador sintético</th><th rowspan="2">12<br>Observaciones</th></tr><tr><th>Lugar</th><th>Hora</th><th>Lugar</th><th>Hora</th><th>Modelo</th><th>Matríc.</th><th>SE</th><th>ME</th><th>MP</th><th>Día</th><th>Noche</th><th>Noche</th><th>IFR</th><th>PIC</th><th>COP</th><th>Dual</th><th>SPIC</th><th>Inst.</th><th>Fecha</th><th>Tipo</th><th>Total</th></tr>';
+   const lab=(t,o,bold)=>'<tr class="t"><td colspan="7" style="text-align:right">'+t+'</td>'+['se','me','mp','tot'].map(k=>'<td>'+fm(k,o[k])+'</td>').join('')+'<td></td>'+['ldD','ldN','night','ifr','PIC','COP','DUAL','SPIC','INS'].map(k=>'<td>'+fm(k,o[k])+'</td>').join('')+'<td colspan="2"></td><td>'+fm('sint',o.sint)+'</td><td></td></tr>';
    foot=lab('Total de esta página',page)+lab('Total desde páginas previas',prev)+lab('Tiempo total',tot)}
   out+='<section class="pg"><h2>'+esc(b.name)+' · '+esc(DB.owner||'')+' — Página '+(pi+1)+' de '+pages.length+'</h2><table>'+(S.fmt==='simple'?'<colgroup><col style="width:9%"><col style="width:8%"><col style="width:6%"><col style="width:8%"><col style="width:6%"><col style="width:9%"><col style="width:7%"><col style="width:6%"><col style="width:13%"><col style="width:13%"><col style="width:15%"></colgroup>':'<colgroup><col style="width:5.2%"><col style="width:4.3%"><col style="width:3.6%"><col style="width:4.3%"><col style="width:3.6%"><col style="width:5%"><col style="width:5.2%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.4%"><col style="width:3.7%"><col style="width:6.5%"><col style="width:2.8%"><col style="width:2.8%"><col style="width:3.3%"><col style="width:3.3%"><col style="width:3.3%"><col style="width:3.3%"><col style="width:3.3%"><col style="width:3.3%"><col style="width:5%"><col style="width:4%"><col style="width:3.4%"><col style="width:10.7%"></colgroup>')+'<thead>'+head+'</thead><tbody>'+rows+blanks+foot+'</tbody></table><div class="sig"><span>Certifico que las anotaciones de este libro son ciertas</span><span>Firma del piloto</span></div></section>';
   keys.forEach(k=>prev[k]=tot[k])});
@@ -742,6 +764,9 @@ document.addEventListener('click',async e=>{
  case'delf':if(S.f&&S.f.club)break;if(await ask('Borrar vuelo','Esta acción no se puede deshacer.',[{t:'Borrar',v:true,cls:'danger'},{t:'Cancelar',v:false}])){DB.flights=DB.flights.filter(f=>f.id!==S.f.id);save();S.screen='book';S.editing=false;render()}break;
   case'st':{const k=b.dataset.k;S.f[k]=Math.max(0,(+S.f[k]||0)+(+b.dataset.d));render();break}
  case'tg':S.f[b.dataset.k]=!S.f[b.dataset.k];render();break;
+ case'fnsel':{const f=S.f,ant=fnOf(f);f.fn=v;if(v==='PIC'){f.dual=false;f.withInst=false}else if(v==='DUAL'){f.dual=true;f.withInst=true}else{f.withInst=false;if(!['SPIC','INS'].includes(ant)||!['SPIC','INS'].includes(v))f.dual=true}
+   if((v==='INS'||v==='DMI')&&!['INS','DMI'].includes(ant))f.crew='';render();break}
+ case'spicm':S.f.dual=v==='dm';render();break;
  case'more':S.more=!S.more;render();break;
  case'time':openTime(b.dataset.k);break;
  case'cbo':{const inp=document.querySelector('[data-f="'+b.dataset.k+'"]');inp.focus();showDD(inp,b.dataset.kind,true);break}

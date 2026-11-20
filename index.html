@@ -60,7 +60,7 @@ input[readonly]{background:var(--bg);color:var(--muted)}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 .two>*,.three>*{min-width:0}
 input[type=date]{min-width:0;max-width:100%}
-.trsel{cursor:pointer}.trsel.on td{background:var(--soft)}@media(max-width:600px){.vercol{display:none}}
+.motivo{display:inline-block;margin-top:4px;font-size:14px;line-height:1.4}.trsel{cursor:pointer}.trsel.on td{background:var(--soft)}@media(max-width:600px){.vercol{display:none}}
 .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 @media(max-width:600px){.three.st1{grid-template-columns:1fr}.three.st2{grid-template-columns:1fr 1fr}.three.st2>:last-child{grid-column:1/-1}.three.st3{grid-template-columns:1fr 1fr}.three.st3>:first-child{grid-column:1/-1}}
 #ficha-sel{scroll-margin-top:100px}
@@ -171,7 +171,7 @@ const TIPO_CHIP={normal:'',escuela:'sp',divulgacion:'ok',mantenimiento:'warn'};
 const chipTipo=t=>t==='normal'?'':`<span class="chip ${TIPO_CHIP[t]}">${TIPO_TXT[t]}</span>`; // los vuelos normales no se etiquetan
 const rolAcomp=v=>v.tipo==='escuela'?'Instructor':'Safety pilot';
 // Quién iba a bordo: «Safety pilot: Laura S.», «Instructor: …», «Solo» o «2 personas a bordo»
-const aBordo=v=>v.safety_pilot_id?rolAcomp(v)+': '+nombre(v.safety_pilot_id):v.acompanante?'2 personas a bordo':'Solo';
+const aBordo=v=>v.dm_instructor?'Doble mando con '+nombre(v.dm_instructor):v.safety_pilot_id?rolAcomp(v)+': '+nombre(v.safety_pilot_id):v.acompanante?'2 personas a bordo':'Solo';
 const DESCUENTA={normal:true,escuela:false,divulgacion:false,mantenimiento:false};
 const SOLO_ADMIN=['escuela','mantenimiento'];
 const hechaTxt=r=>r.creado_en&&me()&&me().rol==='admin'?`<span class="hecha">Reservada el ${fmtCorto(r.creado_en.slice(0,10))} a las ${r.creado_en.slice(11,16)}</span>`:'';
@@ -702,7 +702,7 @@ function vVolar(){
   if(!S.form||S.form.kind!=='vuelo'){
     const t=today();
     const r=reservasActivas().find(r=>r.usuario_id===u.id&&r.inicio.slice(0,10)===t);
-    S.form={kind:'vuelo',piloto:u.id,avion:null,sugerido:r?r.avion_id:null,tipo:adm?'mantenimiento':'normal',salida:'Igualada-Òdena',destino:'Igualada-Òdena',hora:'10:00',editSalida:false,salidaTxt:'',llegada:'',acomp:'',tomas:1,nota:'',sp:'',reserva:null};
+    S.form={kind:'vuelo',piloto:u.id,avion:null,sugerido:r?r.avion_id:null,tipo:adm?'mantenimiento':'normal',salida:'Igualada-Òdena',destino:'Igualada-Òdena',hora:'10:00',editSalida:false,salidaTxt:'',llegada:'',acomp:'',tomas:1,nota:'',sp:'',dmi:'',reserva:null};
   }
   const f=S.form,pil=+f.piloto;
   if(!f.avion){
@@ -731,8 +731,9 @@ function vVolar(){
    :`<div class="row" style="justify-content:flex-start;gap:12px;flex-wrap:wrap">${odo(a,esperado)}<button class="btn sm ghost" data-act="salida-edit">No coincide</button></div><span class="sm">Viene de la llegada del último vuelo de este avión.</span>`}</div>
   <div class="field"><label>Horómetro de llegada</label>
    <input inputmode="decimal" data-f="llegada" placeholder="Ej. ${horoInput(a,esperado+60)}" value="${esc(f.llegada)}" style="font:600 1.3rem var(--f-mono);letter-spacing:.04em"><span class="sm">${AYUDA_HORO(a)}</span><span class="sm" id="illeg"></span></div>
-  ${(()=>{const obl=f.tipo==='escuela'||necesitaSP(pil,a.id);return `<div class="field"><label>${f.tipo==='escuela'?'Instructor (obligatorio)':obl?'Safety pilot (obligatorio)':'Safety pilot (si iba)'}</label><select data-f="sp"><option value="">${obl?'— Elige —':'Ninguno'}</option>${usuariosActivos().filter(x=>x.sp&&x.id!==pil).map(x=>`<option value="${x.id}" ${+f.sp===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select>${obl&&f.tipo!=='escuela'?`<span class="sm" style="color:var(--sp)">${pil===S.user?'Para volar este avión':nombre(pil)+' necesita'} safety pilot: indica con quién ${pil===S.user?'has volado':'voló'}.</span>`:'<span class="sm">Queda anotado en el vuelo; no suma horas ni gasta bono.</span>'}</div>`})()}
-  <div class="two">${f.sp?`<div class="field"><label>A bordo</label><div class="sm" style="padding-top:8px">${f.tipo==='escuela'?'Instructor':'Safety pilot'}: <b>${esc(nombre(+f.sp))}</b></div></div>`:`<div class="field"><label>A bordo</label><div class="chips"><button class="${f.acomp==='no'?'on':''}" data-act="acomp" data-v="no">Solo</button><button class="${f.acomp==='si'?'on':''}" data-act="acomp" data-v="si">2 personas</button></div></div>`}
+  ${f.tipo==='normal'?(()=>{const ins=usuariosActivos().filter(x=>x.instructor&&x.id!==pil);if(!ins.length)return '';return `<div class="field"><label>¿Con instructor? (doble mando)</label><div class="chips"><button class="${!f.dmi?'on':''}" data-act="dmi" data-v="">No</button>${ins.map(x=>`<button class="${+f.dmi===x.id?'on':''}" data-act="dmi" data-v="${x.id}">${esc(x.nombre)}</button>`).join('')}</div><span class="sm">${f.dmi?`Se anota como <b>doble mando</b> en tu logbook y en el de ${esc(nombre(+f.dmi))}. Las horas se descuentan de tu paquete.`:'Si has volado con un instructor dándote doble mando (readaptación, nuevo avión…), elígelo aquí.'}</span></div>`})():''}
+  ${(()=>{const obl=f.tipo==='escuela'||(necesitaSP(pil,a.id)&&!(f.tipo==='normal'&&f.dmi));return `<div class="field"><label>${f.tipo==='escuela'?'Instructor (obligatorio)':obl?'Safety pilot (obligatorio)':'Safety pilot (si iba)'}</label><select data-f="sp"><option value="">${obl?'— Elige —':'Ninguno'}</option>${usuariosActivos().filter(x=>x.sp&&x.id!==pil).map(x=>`<option value="${x.id}" ${+f.sp===x.id?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select>${obl&&f.tipo!=='escuela'?`<span class="sm" style="color:var(--sp)">${pil===S.user?'Para volar este avión':nombre(pil)+' necesita'} safety pilot: indica con quién ${pil===S.user?'has volado':'voló'}.</span>`:'<span class="sm">Queda anotado en el vuelo; no suma horas ni gasta bono.</span>'}</div>`})()}
+  <div class="two">${(f.tipo==='normal'&&f.dmi&&!f.sp)?`<div class="field"><label>A bordo</label><div class="sm" style="padding-top:8px">Instructor: <b>${esc(nombre(+f.dmi))}</b></div></div>`:f.sp?`<div class="field"><label>A bordo</label><div class="sm" style="padding-top:8px">${f.tipo==='escuela'?'Instructor':'Safety pilot'}: <b>${esc(nombre(+f.sp))}</b></div></div>`:`<div class="field"><label>A bordo</label><div class="chips"><button class="${f.acomp==='no'?'on':''}" data-act="acomp" data-v="no">Solo</button><button class="${f.acomp==='si'?'on':''}" data-act="acomp" data-v="si">2 personas</button></div></div>`}
   <div class="field"><label>Tomas</label><input type="number" min="1" max="50" data-f="tomas" value="${f.tomas}"></div></div>
   ${f.editSalida?`<div class="field"><label>Nota para el administrador (obligatoria)</label><textarea data-f="nota" placeholder="¿Por qué no coincide? Ej.: el vuelo anterior no se anotó.">${esc(f.nota)}</textarea></div>`:''}
   <div id="prev"></div>
@@ -750,7 +751,7 @@ function leerVuelo(){
   if(sal!==null&&lleg!==null){min=lleg-sal;if(min<=0)errs.push('La llegada debe ser mayor que la salida.');else if(min>8*60)errs.push('Más de 8 h de vuelo: revisa la lectura.')}
   if(f.editSalida&&sal!==null&&sal===esperado)errs.push('La salida que has escrito sí coincide: vuelve a la automática.');
   if(f.editSalida&&!String(f.nota).trim())errs.push('Falta la nota para el administrador.');
-  if(!f.sp&&!f.acomp)errs.push('Indica si volabas solo o con 2 personas a bordo.');
+  if(!f.sp&&!f.acomp&&!(f.tipo==='normal'&&f.dmi))errs.push('Indica si volabas solo o con 2 personas a bordo.');
   if(!(+f.tomas>=1))errs.push('Indica el número de tomas.');
   if(!f.hora)errs.push('Indica la hora de salida.');
   if(f.tipo!=='escuela'&&necesitaSP(+f.piloto,a.id)&&!f.sp)errs.push('Este vuelo necesita safety pilot: indica con quién se voló.');
@@ -844,6 +845,19 @@ function aRegistro(){
   <p class="sm">${todos.length} acciones${F.cat||F.por||F.d1||F.d2?' con estos filtros':''}.</p>`;
 }
 const verMas=(k,arr,txt)=>arr.length<=6||S.ver===k?arr.join(''):arr.slice(0,5).join('')+`<button class="btn sm ghost" style="width:100%;margin:6px 0" data-act="ver-todo" data-v="${k}">Ver los ${arr.length} ${txt}</button>`;
+// --- textos que explican al administrador por qué tiene que revisar o aprobar algo ---
+function difHoro(v){ // compara la salida que puso el piloto con la llegada del vuelo anterior de ese avión
+  const ev=eventosHoro(v.avion_id).filter(e=>e.id<v.id&&!(e.v&&e.v.id===v.id));const prev=ev.length?ev[ev.length-1]:null;
+  if(!prev)return null;return {esp:prev.valor,dif:v.horometro_salida_min-prev.valor};
+}
+function motivoRev(v){const a=A(v.avion_id),d=difHoro(v),n=esc(nombre(v.piloto_id));
+  let t=`<b>${n}</b> ha cambiado el horómetro de salida del ${a.matricula}`;
+  if(d&&d.dif!==0)t+=`: puso <b>${fmtHoro(a,v.horometro_salida_min)}</b> y según el vuelo anterior debía ser <b>${fmtHoro(a,d.esp)}</b>. `+(d.dif>0?`<b>Lo adelanta ${fmtMin(d.dif)}</b> (quedan ${fmtMin(d.dif)} sin anotar entre los dos vuelos).`:`<b>Lo retrasa ${fmtMin(-d.dif)}</b> (se solapa con el vuelo anterior).`);
+  else t+='.';
+  return t+` Vuelo del ${fmtCorto(v.fecha)} de ${fmtMin(minutosVuelo(v))}.`;
+}
+function motivoDiv(v){return `<b>${esc(nombre(v.piloto_id))}</b> ha anotado un <b>vuelo de divulgación</b> de ${fmtMin(minutosVuelo(v))} en el ${A(v.avion_id).matricula} el ${fmtCorto(v.fecha)}. Si lo apruebas no descuenta de sus horas; si lo rechazas pasa a vuelo normal y se le descuenta.`}
+function motivoSP(r){const sp=esc(nombre(r.safety_pilot_id));return `<b>${esc(quienRes(r))}</b> ha reservado el ${A(r.avion_id).matricula} el ${fmtCorto(r.inicio.slice(0,10))} de ${r.inicio.slice(11)} a ${r.fin.slice(11)} y ha pedido a <b>${sp}</b> como safety pilot. `+(r.sp_estado==='rechazado'?`<b>${sp} lo ha rechazado.</b>`:`${sp} aún no lo ha aceptado.`)}
 function aResumen(){
   const rev=DB.vuelos.filter(v=>v.estado==='por_revisar');
   const apr=DB.vuelos.filter(v=>v.aprobacion==='pendiente'&&v.estado!=='anulado');
@@ -863,12 +877,12 @@ function aResumen(){
    <div class="card"><span class="lbl">Revisiones a menos de 30 h</span><div class="big">${revs.length}</div></div>
    <div class="card"><span class="lbl">Caducidades ≤ 60 días</span><div class="big">${cad.length}</div></div></div>
   <div class="cols"><div class="card"><h3 style="margin-bottom:6px">Atención</h3>
-   ${rev.map(v=>`<div class="line"><span><span class="chip bad">Revisar</span> ${A(v.avion_id).matricula} · ${esc(nombre(v.piloto_id))} · ${fmtCorto(v.fecha)}<br><span class="sm">«${esc(v.nota_piloto)}»</span></span><button class="btn sm" data-act="editar-vuelo" data-id="${v.id}">Revisar</button></div>`).join('')}
-   ${apr.map(v=>`<div class="line"><span><span class="chip warn">Divulgación</span> ${A(v.avion_id).matricula} · ${esc(nombre(v.piloto_id))} · ${fmtCorto(v.fecha)} · ${fmtMin(minutosVuelo(v))}</span><span style="display:flex;gap:6px"><button class="btn sm" data-act="div-aprobar" data-id="${v.id}">Aprobar</button><button class="btn sm ghost" data-act="div-rechazar" data-id="${v.id}">${S.confirm==='dr'+v.id?'¿Pasar a normal?':'Rechazar'}</button></span></div>`).join('')}
+   ${rev.map(v=>`<div class="line"><span><span class="chip bad">Horómetro cambiado</span><br><span class="motivo">${motivoRev(v)}</span>${v.nota_piloto?`<br><span class="sm">Nota del piloto: «${esc(v.nota_piloto)}»</span>`:''}</span><button class="btn sm" style="align-self:flex-start;flex:none" data-act="editar-vuelo" data-id="${v.id}">Revisar</button></div>`).join('')}
+   ${apr.map(v=>`<div class="line"><span><span class="chip warn">Vuelo de divulgación</span><br><span class="motivo">${motivoDiv(v)}</span></span><span style="display:flex;flex-direction:column;gap:6px;align-self:flex-start;flex:none"><button class="btn sm" data-act="div-aprobar" data-id="${v.id}">Aprobar</button><button class="btn sm ghost" data-act="div-rechazar" data-id="${v.id}">${S.confirm==='dr'+v.id?'¿Pasar a normal?':'Rechazar'}</button></span></div>`).join('')}
    ${(()=>{const g=new Map();sinMant.forEach(x=>{if(!g.has(x.u.id))g.set(x.u.id,{u:x.u,av:[]});g.get(x.u.id).av.push(x.a.matricula)});
      return verMas('mant',[...g.values()].map(x=>`<div class="line"><span><span class="chip warn">Mantenimiento</span> ${esc(x.u.nombre)}</span><span class="sm" style="text-align:right">sin paquete de mantenimiento esta temporada<br>${x.av.join(' · ')}</span></div>`),'pilotos sin paquete de mantenimiento')})()}
    ${verMas('neg',negs.sort((a,b)=>a.s-b.s).map(x=>`<div class="line"><span><span class="chip bad">Saldo</span> ${esc(x.u.nombre)} · ${x.a.matricula}</span><b class="neg">${fmtMin(x.s)}</b></div>`),'saldos negativos')}
-   ${spp.map(r=>`<div class="line"><span><span class="chip warn">SP ${r.sp_estado}</span> ${esc(quienRes(r))} · ${A(r.avion_id).matricula} · ${fmtCorto(r.inicio.slice(0,10))} ${r.inicio.slice(11)}</span><span class="sm">${esc(nombre(r.safety_pilot_id))}</span></div>`).join('')}
+   ${spp.map(r=>`<div class="line"><span><span class="chip warn">Safety pilot ${r.sp_estado==='rechazado'?'rechazado':'sin confirmar'}</span><br><span class="motivo">${motivoSP(r)}</span></span></div>`).join('')}
    ${revs.map(x=>`<div class="line"><span><span class="chip warn">Revisión</span> ${x.a.matricula} a ${fmtHoro(x.a,x.a.proxima_revision_min)}</span><span class="sm">faltan ${fmtMin(x.f)}</span></div>`).join('')}
    ${cad.map(c=>`<div class="line"><span><span class="chip ${c.dd<0?'bad':'warn'}">${c.n}</span> ${esc(c.u.nombre)}</span><span class="sm">${c.dd<0?'caducado el ':'caduca el '}${fmtCorto(c.f)}</span></div>`).join('')}
    ${!rev.length&&!apr.length&&!sinMant.length&&!negs.length&&!spp.length&&!revs.length&&!cad.length?'<p class="sm">Nada pendiente.</p>':''}</div>
@@ -896,6 +910,7 @@ function modalVuelo(){
   const hist=DB.historial.filter(h=>h.vuelo_id===v.id).slice().reverse();
   const isDec=a.tipo_horometro==='decimas';
   return `<div class="row"><h3>Vuelo del ${fmtCorto(v.fecha)} · ${a.matricula} · ${esc(nombre(v.piloto_id))}</h3>${v.estado==='por_revisar'?'<span class="chip bad">Por revisar</span>':v.estado==='anulado'?'<span class="chip">Anulado</span>':''}</div>
+  ${v.estado==='por_revisar'?`<div class="msg warn">${motivoRev(v)}</div>`:''}${v.aprobacion==='pendiente'?`<div class="msg warn">${motivoDiv(v)}</div>`:''}
   ${v.nota_piloto?`<div class="msg warn">Nota del piloto: «${esc(v.nota_piloto)}»</div>`:''}
   <div class="two"><div class="field"><label>Horómetro salida</label><input data-m="sal" value="${esc(f.sal)}"></div><div class="field"><label>Horómetro llegada</label><input data-m="lleg" value="${esc(f.lleg)}"></div></div>
   <div class="two"><div class="field"><label>Tipo</label><select data-m="tipo">${TIPOS.map(([k,t])=>`<option value="${k}" ${f.tipo===k?'selected':''}>${t}</option>`).join('')}</select></div>
@@ -1195,11 +1210,12 @@ wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calend
     else S.form.sp='';render()},
   'cambiar-avion':()=>{S.form.avion=null;render()},
   acomp:e=>{S.form.acomp=e.dataset.v;render()},
+  dmi:e=>{S.form.dmi=e.dataset.v;render()},
   'salida-edit':()=>{S.form.editSalida=true;render()},
   'salida-auto':()=>{S.form.editSalida=false;S.form.nota='';render()},
   'guardar-vuelo':()=>{const {a,sal,lleg,min,errs,esperado}=leerVuelo();if(errs.length)return;const f=S.form,u=U(+f.piloto),adm=S.modo==='admin';
     const editada=f.editSalida&&sal!==esperado;
-    const v={id:nid(),avion_id:a.id,piloto_id:u.id,safety_pilot_id:f.sp?+f.sp:null,tipo:f.tipo,fecha:today(),aerodromo_salida:f.salida.trim(),aerodromo_destino:f.destino.trim(),hora_salida:f.hora,hora_llegada:min2hm(hm2min(f.hora)+min),horometro_salida_min:sal,horometro_llegada_min:lleg,acompanante:!!f.sp||f.acomp==='si',tomas:+f.tomas,descuenta_bono:DESCUENTA[f.tipo],aprobacion:(!adm&&f.tipo==='divulgacion')?'pendiente':null,salida_editada:editada,nota_piloto:editada?f.nota.trim():'',estado:editada?'por_revisar':'ok',reserva_id:f.reserva,creado_en:ahora()+':00'};
+    const v={id:nid(),avion_id:a.id,piloto_id:u.id,safety_pilot_id:f.sp?+f.sp:null,tipo:f.tipo,fecha:today(),aerodromo_salida:f.salida.trim(),aerodromo_destino:f.destino.trim(),hora_salida:f.hora,hora_llegada:min2hm(hm2min(f.hora)+min),horometro_salida_min:sal,horometro_llegada_min:lleg,acompanante:!!f.sp||!!(f.tipo==='normal'&&f.dmi)||f.acomp==='si',dm_instructor:f.tipo==='normal'&&f.dmi?+f.dmi:null,tomas:+f.tomas,descuenta_bono:DESCUENTA[f.tipo],aprobacion:(!adm&&f.tipo==='divulgacion')?'pendiente':null,salida_editada:editada,nota_piloto:editada?f.nota.trim():'',estado:editada?'por_revisar':'ok',reserva_id:f.reserva,creado_en:ahora()+':00'};
     A(a.id).horo_actual=lleg;if(!esAdminCuenta()&&me())me().ultimo_vuelo_ms=Date.parse(today()+'T12:00:00');
     DB.vuelos.push(v);log(adm?'Creado por administrador':'Creado',v.id,TIPO_TXT[v.tipo]+' · Salida '+fmtHoro(a,sal)+' · Llegada '+fmtHoro(a,lleg)+' · '+min+' min','');save();S.form=null;if(adm)S.adm='logbook';else S.view='inicio';
     toast((adm?'Vuelo de '+u.nombre+' guardado: ':'Vuelo guardado: ')+fmtMin(min)+(v.aprobacion==='pendiente'?'. Queda pendiente de aprobación por el administrador. No descuenta bono salvo que no se apruebe.':v.descuenta_bono?'. Saldo en el '+a.matricula+': '+fmtMin(saldo(u.id,a.id))+'.':'. No descuenta bono.')+(editada?' Queda por revisar.':''))},

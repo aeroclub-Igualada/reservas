@@ -365,15 +365,19 @@ function rebuild(){
   DB.clases=[...raw('reservas').values()].filter(r=>r.escuela&&r.estado==='activa'&&r.inicio).map(r=>({id:r.id,alumno:r.alumno_id,instructor:r.usuario_id,avion:r.avion_id,leccion:r.leccion||0,fecha:r.inicio.slice(0,10),desde:r.inicio.slice(11,16),hasta:r.fin.slice(11,16)}));
   SNAP={v:new Map(DB.vuelos.map(v=>[v.id,ser({n:v.nota,l:v.horoLle})])),a:new Map(DB.aviones.map(a=>[a.id,a.horo])),u:new Map(DB.usuarios.map(u=>[u.id,ser({n:u.nombre,e:u.email,a:u.activo,i:u.instructor})]))};
 }
+// equipo = instructor principal + suplentes: quién puede ver y gestionar a cada alumno
+const equipoDe=al=>{const u=U(al);if(!u||!u.al)return [];const t=u.al.instructor;return [t,...(u.al.suplentes||[]).filter(x=>x!==t)].filter(x=>x!=null)};
 function docsEsc(){
   const tutor=al=>{const u=U(al);return u&&u.al?u.al.instructor:null};
   const out={escuela_alumnos:new Map(),escuela_paquetes:new Map(),escuela_ajustes:new Map(),escuela_comentarios:new Map()};
-  DB.usuarios.filter(u=>u.al).forEach(u=>{const d=JSON.parse(JSON.stringify(u.al));d.id=u.id;d.tutor=u.al.instructor;delete d.instructor;d.progreso=DB.progreso[u.id]||{};d.teorico=DB.teorico[u.id]||{};
-    const o=raw('escuela_alumnos').get(String(u.id));if(o){if(!('progreso' in o)&&!Object.keys(d.progreso).length)delete d.progreso;if(!('teorico' in o)&&!Object.keys(d.teorico).length)delete d.teorico}
+  DB.usuarios.filter(u=>u.al).forEach(u=>{const d=JSON.parse(JSON.stringify(u.al));d.id=u.id;d.tutor=u.al.instructor;delete d.instructor;d.suplentes=(u.al.suplentes||[]).filter(x=>x!==u.al.instructor);d.equipo=equipoDe(u.id);d.progreso=DB.progreso[u.id]||{};d.teorico=DB.teorico[u.id]||{};
+    const o=raw('escuela_alumnos').get(String(u.id));
+    if(ES_ALUMNO){['equipo','suplentes'].forEach(k=>{if(o&&k in o)d[k]=o[k];else delete d[k]})}
+    if(o){if(!('progreso' in o)&&!Object.keys(d.progreso).length)delete d.progreso;if(!('teorico' in o)&&!Object.keys(d.teorico).length)delete d.teorico}
     out.escuela_alumnos.set(String(u.id),d)});
-  DB.paquetes.forEach(p=>out.escuela_paquetes.set(String(p.id),{id:p.id,alumno:p.alumno,tutor:tutor(p.alumno),min:p.min,fecha:p.fecha,por:p.por}));
-  DB.ajustes.forEach(a=>out.escuela_ajustes.set(String(a.id),{id:a.id,alumno:a.alumno,tutor:tutor(a.alumno),min:a.min,motivo:a.motivo,fecha:a.fecha,por:a.por}));
-  DB.comentarios.forEach(c=>out.escuela_comentarios.set(String(c.id),{id:c.id,alumno:c.alumno,tutor:tutor(c.alumno),por:c.por,fecha:c.fecha,txt:c.txt}));
+  DB.paquetes.forEach(p=>out.escuela_paquetes.set(String(p.id),{id:p.id,alumno:p.alumno,tutor:tutor(p.alumno),equipo:equipoDe(p.alumno),min:p.min,fecha:p.fecha,por:p.por}));
+  DB.ajustes.forEach(a=>out.escuela_ajustes.set(String(a.id),{id:a.id,alumno:a.alumno,tutor:tutor(a.alumno),equipo:equipoDe(a.alumno),min:a.min,motivo:a.motivo,fecha:a.fecha,por:a.por}));
+  DB.comentarios.forEach(c=>out.escuela_comentarios.set(String(c.id),{id:c.id,alumno:c.alumno,tutor:tutor(c.alumno),equipo:equipoDe(c.alumno),por:c.por,fecha:c.fecha,txt:c.txt}));
   return out}
 function opsEsc(){
   const ops=[],tutor=al=>{const u=U(al);return u&&u.al?u.al.instructor:null};
@@ -384,10 +388,10 @@ function opsEsc(){
   DB.vuelos.forEach(v=>{const id=String(v.id),o=raw('vuelos').get(id),t=tutor(v.alumno);
     if(!o){ops.push({op:'set',col:'vuelos',id,data:{id:v.id,avion_id:v.avion,piloto_id:v.alumno,safety_pilot_id:v.tipo==='dm'?v.instructor:null,tipo:'escuela',fecha:v.fecha,aerodromo_salida:v.salida,aerodromo_destino:v.destino,hora_salida:v.hora,hora_llegada:horaMas(v.hora,v.min),
       horometro_salida_min:v.horoSal,horometro_llegada_min:v.horoLle,acompanante:v.tipo!=='solo',tomas:+v.tomas||0,descuenta_bono:false,aprobacion:null,salida_editada:false,nota_piloto:'',estado:'ok',reserva_id:v.clase||null,creado_en:ahoraTxt(),
-      esc_modo:v.tipo,esc_leccion:+v.leccion||0,esc_leccion_txt:+v.leccion?LEC(v.leccion).t:'Vuelo de práctica',esc_instructor:v.instructor,esc_examinador:v.examinador||'',esc_tutor:t,nota_esc:null}});return}
+      esc_modo:v.tipo,esc_leccion:+v.leccion||0,esc_leccion_txt:+v.leccion?LEC(v.leccion).t:'Vuelo de práctica',esc_instructor:v.instructor,esc_examinador:v.examinador||'',esc_tutor:t,esc_equipo:equipoDe(v.alumno),nota_esc:null}});return}
     const d=Object.assign({},o);let ch=false;
     if(SNAP.v.get(v.id)!==ser({n:v.nota,l:v.horoLle})){d.nota_esc=v.nota||null;d.horometro_llegada_min=v.horoLle;d.hora_llegada=horaMas(v.hora,v.min);ch=true}
-    if(esPrincipal()&&o.esc_modo&&o.esc_tutor!==t){d.esc_tutor=t;ch=true}
+    if(esPrincipal()&&o.esc_modo&&(o.esc_tutor!==t||ser(o.esc_equipo||[])!==ser(equipoDe(v.alumno)))){d.esc_tutor=t;d.esc_equipo=equipoDe(v.alumno);ch=true}
     if(ch)ops.push({op:'set',col:'vuelos',id,data:d})});
   DB.aviones.forEach(a=>{if(SNAP.a.get(a.id)!==a.horo){const o=raw('aviones').get(String(a.id));if(o)ops.push({op:'set',col:'aviones',id:String(a.id),data:Object.assign({},o,{horo_actual:a.horo})})}});
   // clases = reservas del club marcadas como escuela
@@ -418,10 +422,12 @@ function escuchar(esIns){
   const L=(c,f)=>{PEND.add(c);UNSUB.push(API.listen(c,f,docs=>{const m=raw(c);m.clear();docs.forEach(d=>m.set(d.id,d.data));PEND.delete(c);alCambiar()},e=>{console.error(c,e);PEND.delete(c);alCambiar()}))};
   ['usuarios','aviones','bloqueos'].forEach(c=>L(c,null));
   {const x=new Date();x.setDate(x.getDate()-60);L('reservas',{field:'fin',op:'>=',value:x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')})}
-  const mio=ES_PRINCIPAL?null:ES_ALUMNO?{field:'alumno',value:YO}:{field:'tutor',value:YO};
-  L('escuela_alumnos',ES_PRINCIPAL?null:ES_ALUMNO?{docId:String(YO)}:{field:'tutor',value:YO});
-  ['escuela_paquetes','escuela_ajustes','escuela_comentarios'].forEach(c=>L(c,mio));
-  L('vuelos',ES_PRINCIPAL?{field:'tipo',value:'escuela'}:ES_ALUMNO?{field:'piloto_id',value:YO}:{field:'esc_tutor',value:YO});
+  // un instructor recibe lo de sus alumnos (principal) y lo de los que tiene como suplente (equipo)
+  const LM=(c,fs)=>{const parts=fs.map(()=>new Map()),hechos=new Set();PEND.add(c);fs.forEach((f,i)=>UNSUB.push(API.listen(c,f,docs=>{parts[i]=new Map(docs.map(d=>[d.id,d.data]));hechos.add(i);const m=raw(c);m.clear();parts.forEach(p=>p.forEach((v,k)=>m.set(k,v)));if(hechos.size===fs.length)PEND.delete(c);alCambiar()},e=>{console.error(c,e);hechos.add(i);if(hechos.size===fs.length)PEND.delete(c);alCambiar()})))};
+  if(ES_PRINCIPAL){['escuela_alumnos','escuela_paquetes','escuela_ajustes','escuela_comentarios'].forEach(c=>L(c,null));L('vuelos',{field:'tipo',value:'escuela'})}
+  else if(ES_ALUMNO){L('escuela_alumnos',{docId:String(YO)});['escuela_paquetes','escuela_ajustes','escuela_comentarios'].forEach(c=>L(c,{field:'alumno',value:YO}));L('vuelos',{field:'piloto_id',value:YO})}
+  else{['escuela_alumnos','escuela_paquetes','escuela_ajustes','escuela_comentarios'].forEach(c=>LM(c,[{field:'tutor',value:YO},{field:'equipo',op:'array-contains',value:YO}]));
+    LM('vuelos',[{field:'esc_tutor',value:YO},{field:'esc_equipo',op:'array-contains',value:YO}])}
 }
 async function crearApiFirebase(){
   const b='https://www.gstatic.com/firebasejs/'+FB_VERSION+'/';
@@ -473,7 +479,9 @@ const esInstructor=()=>me()&&!!me().instructor;
 const alumnos=()=>DB.usuarios.filter(u=>u.rol==='alumno'&&u.al.estado==='formacion');
 const bajas=()=>DB.usuarios.filter(u=>u.rol==='alumno'&&u.al.estado==='baja');
 const instructores=()=>DB.usuarios.filter(u=>u.instructor&&u.activo!==false);
-const puedeGestionar=al=>esPrincipal()||(esInstructor()&&U(al)&&U(al).al&&U(al).al.instructor===S.user);
+const supDe=al=>{const u=U(al);return (u&&u.al&&u.al.suplentes)||[]};
+const esMio=al=>{const u=U(al);return !!(u&&u.al&&(u.al.instructor===S.user||supDe(al).includes(S.user)))};
+const puedeGestionar=al=>esPrincipal()||(esInstructor()&&esMio(al));
 const saldo=al=>saldoDe(DB,al);
 const vuelosDe=al=>DB.vuelos.filter(v=>v.alumno===al).sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)||b.id-a.id);
 const estadoLec=(al,n)=>(DB.progreso[al]||{})[n]||'';
@@ -509,9 +517,9 @@ function vLogin(){return '<p class="cargando">Cargando la escuela…</p>'}
    ===================================================================== */
 function vAlumno(){
   const u=me(),al=u.id;
-  const items=[['inicio','Inicio'],['volar','Volar'],['diario','Diario'],['formacion','Formación'],['ficha','Mi ficha']];
+  const items=[['inicio','Inicio'],['diario','Diario'],['formacion','Formación'],['ficha','Mi ficha']];
   let h=topBar('Aeroclub · Escuela <span class="badge-al">Alumno</span>');
-  h+=`<div class="wrap">`+({inicio:aInicio,volar:aVolar,diario:aDiario,formacion:aFormacion,horas:aHoras,ficha:al=>`<div class="row"><h2>Mi ficha</h2><span class="sm">${esc(U(al).al.matricula||'')}</span></div>`+fichaDatos(al,'alumno')}[S.view]||aInicio)(al)+`</div>`;
+  h+=`<div class="wrap">`+({inicio:aInicio,diario:aDiario,formacion:aFormacion,horas:aHoras,ficha:al=>`<div class="row"><h2>Mi ficha</h2><span class="sm">${esc(U(al).al.matricula||'')}</span></div>`+fichaDatos(al,'alumno')}[S.view]||aInicio)(al)+`</div>`;
   return h+nav(items);
 }
 function aInicio(al){
@@ -539,22 +547,23 @@ function aInicio(al){
 function aVolar(al){
   const u=U(al);
   if(!S.f||S.f.kind!=='vuelo'||S.f.al!==al){const c=DB.clases.find(c=>c.alumno===al&&c.fecha===today());const l=c?c.leccion:proxLeccion(al).n;
-    S.f={kind:'vuelo',al,avion:c?c.avion:(u.al.suelta?u.al.suelta.avion:(DB.aviones[0]||{}).id),tipo:'dm',instructor:c?c.instructor:u.al.instructor,examinador:'',leccion:l,salida:'Igualada-Òdena',destino:'Igualada-Òdena',hora:'10:00',llegada:'',tomas:'1',clase:c?c.id:null}}
+    S.f={kind:'vuelo',al,avion:c?c.avion:(u.al.suelta?u.al.suelta.avion:((vuelosDe(al)[0]||{}).avion||DB.aviones[0].id)),tipo:'dm',instructor:c?c.instructor:(me().instructor?S.user:u.al.instructor),examinador:'',leccion:l,salida:'Igualada-Òdena',destino:'Igualada-Òdena',fecha:today(),hora:c?c.desde:'10:00',llegada:'',tomas:'1',clase:c?c.id:null}}
   const f=S.f,a=A(f.avion);
   const tipos=[['dm','Doble mando'],...(tieneSuelta(al,f.avion)?[['solo','Solo supervisado']]:[]),['examen','Examen']];
   if(!tipos.some(x=>x[0]===f.tipo))f.tipo='dm';
   const c=f.clase?DB.clases.find(x=>x.id===f.clase):null;
-  let h=`<div class="row"><h2>Anotar vuelo de escuela</h2><span class="chip">${a.mat}</span></div>`;
+  let h=`<div class="row"><button class="btn sm ghost" data-act="cancelar-vuelo">‹ Cancelar</button><span class="chip">${a.mat}</span></div><div><h2>Anotar vuelo de escuela</h2><div class="sm">Alumno: <b>${esc(u.nombre)}</b> · Al guardar podrás ponerle la nota de la clase.</div></div>`;
   if(c)h+=`<div class="msg info">Clase de hoy reservada por <b>${esc(UN(c.instructor).nombre)}</b> · ${c.desde}–${c.hasta} · ${esc(lecTxt(c.leccion))}</div>`;
   h+=`<div class="card" style="display:grid;gap:10px">
    <div class="field"><label>Avión</label><div class="chips">${DB.aviones.map(x=>`<button class="${x.id===+f.avion?'on':''}" data-act="f" data-k="avion" data-v="${x.id}">${x.mat}</button>`).join('')}</div></div>
    <div class="field"><label>Tipo de vuelo</label><div class="chips">${tipos.map(([k,t])=>`<button class="${f.tipo===k?'on':''}" data-act="f" data-k="tipo" data-v="${k}">${t}</button>`).join('')}</div>
-   <span class="sm">${tieneSuelta(al,f.avion)?'Tienes la suelta en este avión: los vuelos solos siempre con tu instructor en tierra.':'«Solo supervisado» aparecerá cuando tu instructor te dé la suelta en este avión.'}</span></div>
+   <span class="sm">${tieneSuelta(al,f.avion)?'Tiene la suelta en este avión: en los vuelos solos el instructor queda en tierra.':'«Solo supervisado» aparecerá cuando le des la suelta en este avión (pestaña Suelta de su ficha).'}</span></div>
    ${f.tipo==='examen'?`<div class="field"><label>Examinador</label><input data-f="examinador" value="${esc(f.examinador)}" placeholder="Nombre del examinador"></div>`:''}
-   <div class="two"><div class="field"><label>${f.tipo==='solo'?'Instructor en tierra':f.tipo==='examen'?'Instructor que te presenta':'Instructor'}</label><select data-f="instructor">${instructores().map(i=>`<option value="${i.id}" ${i.id===+f.instructor?'selected':''}>${esc(i.nombre)}</option>`).join('')}</select></div>
+   <div class="two"><div class="field"><label>${f.tipo==='solo'?'Instructor en tierra':f.tipo==='examen'?'Instructor que lo presenta':'Instructor a bordo'}</label><select data-f="instructor">${instructores().map(i=>`<option value="${i.id}" ${i.id===+f.instructor?'selected':''}>${esc(i.nombre)}</option>`).join('')}</select></div>
    <div class="field"><label>Lección</label><select data-f="leccion"><option value="0" ${+f.leccion===0?'selected':''}>Vuelo de práctica (sin lección)</option>${LECCIONES.map(l=>`<option value="${l.n}" ${l.n===+f.leccion?'selected':''}>L${l.n} · ${esc(l.t)}</option>`).join('')}</select></div></div>
    <div class="two"><div class="field"><label>Salida</label><input data-f="salida" value="${esc(f.salida)}"></div><div class="field"><label>Destino</label><input data-f="destino" value="${esc(f.destino)}"></div></div>
-   <div class="two"><div class="field"><label>Hora de salida</label><input type="time" data-f="hora" value="${f.hora}"></div><div class="field"><label>Tomas</label><input type="number" min="1" data-f="tomas" value="${esc(f.tomas)}"></div></div>
+   <div class="two"><div class="field"><label>Fecha</label><input type="date" data-f="fecha" max="${today()}" value="${f.fecha||today()}"></div><div class="field"><label>Hora de salida</label><input type="time" data-f="hora" value="${f.hora}"></div></div>
+   <div class="field"><label>Tomas</label><input type="number" min="1" data-f="tomas" value="${esc(f.tomas)}" style="max-width:140px"></div>
    <div class="field"><label>Horómetro de salida</label><div>${odo(a.horo,a)}</div><span class="sm">Viene del último vuelo del ${a.mat}.</span></div>
    <div class="field"><label>Horómetro de llegada</label><input data-f="llegada" inputmode="decimal" value="${esc(f.llegada)}" placeholder="ej. ${horoTxt(a.horo+(a.tipo_horometro==='horas_minutos'?50:54),a)}" style="font-family:var(--f-mono)"><span class="sm">${a.tipo_horometro==='horas_minutos'?'Horas, coma y minutos (0 a 59), como en el avión.':'Con coma y la décima, como en el avión.'}</span></div></div>
    <div id="prev">${prevVuelo()}</div>
@@ -565,10 +574,10 @@ function odo(min,av){const h=String(Math.floor(min/60)).padStart(5,'0');if(av&&a
 function errVuelo(){const f=S.f,a=A(f.avion),e=[],ll=parseHoro(f.llegada,A(f.avion));
   if(ll===null)e.push('Escribe el horómetro de llegada con su décima (ej. '+horoTxt(a.horo+(a.tipo_horometro==='horas_minutos'?50:54),a)+').');else if(ll<=a.horo)e.push('La llegada debe ser mayor que la salida ('+horoTxt(a.horo,a)+').');else if(ll-a.horo>6*60)e.push('Más de 6 h de vuelo: revisa la lectura.');
   if(!(+f.tomas>=1))e.push('Indica el número de tomas.');if(f.tipo==='examen'&&!String(f.examinador).trim())e.push('Indica el examinador.');
-  if(U(f.al).al.medico<today())e.push('Tu certificado médico está caducado.');return e}
+  if(U(f.al).al.medico<(f.fecha||today()))e.push('El certificado médico del alumno está caducado.');if(f.fecha>today())e.push('La fecha no puede ser futura.');return e}
 function prevVuelo(){const f=S.f,a=A(f.avion),ll=parseHoro(f.llegada,A(f.avion)),e=errVuelo();let h='';
   if(ll!==null&&ll>a.horo){const m=ll-a.horo,s=saldo(f.al);h+=`<div class="card" style="background:var(--soft);border-color:transparent"><div class="row"><span class="lbl">Tiempo de vuelo</span><b style="font:700 1.4rem var(--f-disp)">${hmTxt(m)}</b></div>
-   <div class="row" style="margin-top:4px"><span class="sm">Mis horas de escuela</span><span>${hmTxt(s)} → <b class="${s-m<0?'neg':''}">${hmTxt(s-m)}</b></span></div></div>`;
+   <div class="row" style="margin-top:4px"><span class="sm">Horas de escuela del alumno</span><span>${hmTxt(s)} → <b class="${s-m<0?'neg':''}">${hmTxt(s-m)}</b></span></div></div>`;
    if(s-m<0)h+=`<div class="msg warn">Te quedarás en negativo: se descontará del próximo paquete.</div>`;
    h+=f.tipo==='dm'?`<div class="msg ok">✓ ${esc(UN(f.instructor).nombre)} recibirá este vuelo en su logbook como <b>instructor</b> y te pondrá la nota de la clase.</div>`:f.tipo==='solo'?`<div class="msg ok">✓ Queda registrado con ${esc(UN(f.instructor).nombre)} como instructor en tierra, que te pondrá la nota.</div>`:''}
   if(e.length&&String(f.llegada).trim())h+=`<div class="msg info">${e.map(esc).join('<br>')}</div>`;return h}
@@ -577,7 +586,7 @@ function aDiario(al){
   const t=totales(al),vs=vuelosDe(al);
   return `<div class="row"><h2>Mi diario de alumno</h2><span class="sm">${t.n} vuelos</span></div>
   <div class="tl"><div>Doble mando<b>${hm(t.dm)}</b></div><div>Solo superv.<b>${hm(t.solo)}</b></div><div>Examen<b>${t.examen?hm(t.examen):'—'}</b></div><div>Tomas<b>${t.tomas}</b></div></div>
-  <div class="card">${vs.map(v=>filaVuelo(v,'alumno')).join('')||'<p class="sm">Todavía no has anotado vuelos.</p>'}</div>
+  <div class="card">${vs.map(v=>filaVuelo(v,'alumno')).join('')||'<p class="sm">Todavía no tienes vuelos. Tu instructor anota cada vuelo después de la clase.</p>'}</div>
   <div class="msg info">Este es tu diario mientras eres alumno. Cuando apruebes, todos estos vuelos pasarán a tu logbook de piloto con su tipo: doble mando, solo o examen.</div>`;
 }
 function filaVuelo(v,como){const d=new Date(v.fecha+'T12:00');
@@ -585,7 +594,7 @@ function filaVuelo(v,como){const d=new Date(v.fecha+'T12:00');
   const est=v.tipo==='examen'?'':v.nota?`<span class="chip ok" style="margin-left:4px">Nota</span>`:`<span class="chip warn" style="margin-left:4px">Sin nota</span>`;
   return `<button class="fl" data-act="ver-vuelo" data-id="${v.id}"><div class="d">${d.getDate()}<br>${MESES[d.getMonth()].slice(0,3)}</div><div><b>${A(v.avion).mat} · ${esc(lecTxt(v.leccion))}</b> ${typ(v.tipo)}${est}<div class="sm">${quien} · ${v.tomas} toma${+v.tomas===1?'':'s'}</div></div><b>${hm(v.min)}</b></button>`}
 function detalleVuelo(id,gestion){
-  const v=DB.vuelos.find(x=>x.id===id);if(!v){S.vsel=null;return ''}
+  const v=DB.vuelos.find(x=>x.id===id);if(!v){if(S.vselHasta&&Date.now()<S.vselHasta)return '<p class="sm" style="padding:20px 0">Guardando el vuelo…</p>';S.vsel=null;return ''}
   const n=v.nota;
   let h=`<div class="row"><button class="btn sm ghost" data-act="cerrar-vuelo">‹ Volver</button>${typ(v.tipo)}</div>
   <div class="card"><span class="lbl">${fLarga(v.fecha)} · ${v.hora}</span><h3 style="margin-top:4px">${+v.leccion?'Lección '+v.leccion+' · '+esc(LEC(v.leccion).t):'Vuelo de práctica (sin lección)'}</h3>
@@ -670,29 +679,32 @@ function vInstructor(){
   return h+nav(items);
 }
 function iHoy(){
-  const u=me(),mis=alumnos().filter(a=>a.al.instructor===u.id),hoy=DB.clases.filter(c=>c.instructor===u.id&&c.fecha===today()).sort((a,b)=>a.desde.localeCompare(b.desde)),np=pendientesDe(u.id);
+  const u=me(),mis=alumnos().filter(a=>a.al.instructor===u.id),sup=alumnos().filter(a=>a.al.instructor!==u.id&&supDe(a.id).includes(u.id)),hoy=DB.clases.filter(c=>c.instructor===u.id&&c.fecha===today()).sort((a,b)=>a.desde.localeCompare(b.desde)),np=pendientesDe(u.id);
   let h=`<div class="saludo"><div><span class="lbl">Instructor · ${fLarga(today())}</span><h2>Hola, ${esc(nombre1(u.nombre))}</h2></div><button class="btn sm" data-act="nueva-clase" style="white-space:nowrap">+ Clase</button></div>`;
   if(np.length)h+=`<button class="msg warn" style="text-align:left;border:0;width:100%;cursor:pointer" data-act="view" data-v="notas">✎ Tienes <b>${np.length}</b> vuelo${np.length===1?'':'s'} de tus alumnos sin nota. Toca para ponerla.</button>`;
-  h+=`<div class="card" style="border-color:var(--accent)"><div class="row"><span class="lbl">Mis clases de hoy</span><span class="sm">${hoy.length}</span></div>${hoy.map(c=>`<div class="line"><span><b>${c.desde}</b> ${esc(UN(c.alumno).nombre)} · ${esc(lecTxt(c.leccion))}<br><span class="sm">${A(c.avion).mat} · hasta ${c.hasta}</span></span>${DB.vuelos.some(v=>v.alumno===c.alumno&&v.fecha===today())?'<span class="chip ok">Volado</span>':'<span class="chip">Pendiente</span>'}</div>`).join('')||'<p class="sm" style="margin-top:4px">Sin clases hoy.</p>'}</div>`;
+  h+=`<div class="card" style="border-color:var(--accent)"><div class="row"><span class="lbl">Mis clases de hoy</span><span class="sm">${hoy.length}</span></div>${hoy.map(c=>`<div class="line"><span><b>${c.desde}</b> ${esc(UN(c.alumno).nombre)} · ${esc(lecTxt(c.leccion))}<br><span class="sm">${A(c.avion).mat} · hasta ${c.hasta}</span></span>${DB.vuelos.some(v=>v.alumno===c.alumno&&v.fecha===today())?'<span class="chip ok">Volado</span>':`<button class="btn sm" data-act="anotar-vuelo" data-al="${c.alumno}">Anotar vuelo</button>`}</div>`).join('')||'<p class="sm" style="margin-top:4px">Sin clases hoy.</p>'}</div>`;
   h+=`<div class="card"><span class="lbl">Mis alumnos · ${mis.length}</span>${mis.map(stuRow).join('')||'<p class="sm">No tienes alumnos asignados.</p>'}</div>`;
+  if(sup.length)h+=`<div class="card"><span class="lbl">Puedes darles clase como suplente · ${sup.length}</span>${sup.map(stuRow).join('')}</div>`;
   return h;
 }
 function stuRow(a){const [k,t]=estadoAlumno(a.id),uv=ultimoVuelo(a.id),c=proxClase(a.id);
   return `<button class="stu" data-act="ficha" data-id="${a.id}"><div class="row" style="justify-content:flex-start;gap:10px"><span class="av">${ini(a.nombre)}</span><div style="flex:1;min-width:0;text-align:left"><div class="row"><b>${esc(a.nombre)}</b><span class="chip ${k}">${t}</span></div><div class="sm">L${proxLeccion(a.id).n} ${esc(proxLeccion(a.id).t)} · ${uv?'último vuelo '+(uv===today()?'hoy':'hace '+diasEntre(uv,today())+' días'):'sin vuelos'} · ${hmTxt(saldo(a.id))}</div></div></div><div class="pbar" style="margin:4px 0 0 44px"><i style="width:${pct(a.id)}%"></i></div>${c?`<div class="sm" style="margin-left:44px;text-align:left">Próxima clase: ${fCorta(c.fecha)} ${c.desde}</div>`:''}</button>`}
 function iAlumnos(){
   if(S.sel)return ficha(S.sel);
-  const u=me(),todos=alumnos(),mis=todos.filter(a=>a.al.instructor===u.id);
+  const u=me(),todos=alumnos(),mis=todos.filter(a=>a.al.instructor===u.id),sup=todos.filter(a=>a.al.instructor!==u.id&&supDe(a.id).includes(u.id));
   return `<div class="row"><h2>Alumnos</h2><span class="row" style="gap:6px"><button class="btn sm ghost" data-act="nueva-clase">+ Clase</button><button class="btn sm" data-act="alta">+ Alta de alumno</button></span></div>
   <div class="card"><span class="lbl">Mis alumnos · ${mis.length}</span>${mis.map(stuRow).join('')||'<p class="sm">No tienes alumnos asignados.</p>'}</div>
+  ${sup.length?`<div class="card"><span class="lbl">Como suplente · ${sup.length}</span>${sup.map(stuRow).join('')}<p class="sm" style="margin-top:6px">Su instructor principal es otro, pero puedes reservarles clase, anotar sus vuelos y ponerles nota.</p></div>`:''}
   ${bajas().filter(a=>a.al.instructor===u.id).length?`<div class="card"><span class="lbl">De baja · expediente guardado</span>${bajas().filter(a=>a.al.instructor===u.id).map(a=>`<button class="usr" data-act="ficha" data-id="${a.id}"><span class="av">${ini(a.nombre)}</span><span style="flex:1;text-align:left"><b>${esc(a.nombre)}</b><span class="sm">Baja el ${fNum(a.al.bajaFecha)}</span></span><span class="sm">›</span></button>`).join('')}</div>`:''}
-  <p class="sm">Puedes dar de alta alumnos, modificar sus datos y borrarlos. Solo ves y gestionas a los tuyos; la cuenta Aeroclub puede pasar un alumno a otro instructor.</p>`;
+  <p class="sm">Puedes dar de alta alumnos, modificar sus datos y borrarlos. Ves y gestionas a los tuyos y a los que tienes como suplente; la cuenta Aeroclub asigna el instructor principal y los suplentes de cada alumno.</p>`;
 }
 function ficha(al){
   const a=U(al);if(!a||!a.al){S.sel=null;return ''}
   if(!puedeGestionar(al))return `<div class="msg bad">No es alumno tuyo.</div>`;
+  if(S.anotar===al&&(!S.f||S.f.kind==='vuelo'))return aVolar(al);
   if(S.vsel)return detalleVuelo(S.vsel,true);
   const tabs=['Datos','Progreso','Horas','Vuelos','Suelta'];
-  let h=`<div class="row fhead"><button class="btn sm ghost" data-act="cerrar-ficha">‹ ${esPrincipal()?'Escuela':'Alumnos'}</button><span class="row" style="gap:6px"><span class="who">${a.al.instructor===S.user?'Tu alumno':'Instructor '+esc(UN(a.al.instructor).nombre)}</span><button class="btn sm" data-act="nueva-clase">+ Clase</button></span></div>
+  let h=`<div class="row fhead"><button class="btn sm ghost" data-act="cerrar-ficha">‹ ${esPrincipal()?'Escuela':'Alumnos'}</button><span class="row" style="gap:6px"><span class="who">${a.al.instructor===S.user?'Tu alumno':supDe(al).includes(S.user)?'Suplente':'Instructor '+esc(nombre1(UN(a.al.instructor).nombre))}</span><button class="btn sm ghost" data-act="nueva-clase">+ Clase</button><button class="btn sm" data-act="anotar-vuelo" data-al="${al}">+ Vuelo</button></span></div>
   <div class="card"><div class="row" style="justify-content:flex-start;gap:12px"><span class="av" style="width:44px;height:44px">${ini(a.nombre)}</span><div style="flex:1;min-width:0"><h3>${esc(a.nombre)}</h3><div class="sm">${esc(a.al.curso)} · ${esc(a.al.dni||'sin DNI')} · ${esc(a.al.telefono||'')}</div><div class="sm">Médico ${diasEntre(today(),a.al.medico)<0?'<b class="neg">caducado</b>':'hasta '+fNum(a.al.medico)}</div></div><div style="text-align:right"><b style="font:700 1.3rem var(--f-disp)" class="${saldo(al)<0?'neg':''}">${hm(saldo(al))}</b><div class="sm">de escuela</div></div></div>
   <div class="row" style="margin-top:8px"><span class="sm">${logradas(al)} de ${LECCIONES.length} lecciones · fase ${faseActual(al).fase}</span><b>${pct(al)} %</b></div><div class="pbar"><i style="width:${pct(al)}%"></i></div>
   <div class="tabs2" style="margin-top:8px">${tabs.map(t=>`<button class="${S.tab===t?'on':''}" data-act="tab" data-v="${t}">${t}</button>`).join('')}</div></div>`;
@@ -705,7 +717,8 @@ function ficha(al){
   else if(S.tab==='Datos')h+=fichaDatos(al,'editar')+(a.al.estado==='baja'?`<div class="card" style="display:grid;gap:8px;border-color:var(--warn)"><span class="lbl">Alumno de baja</span><p class="sm">De baja desde el ${fNum(a.al.bajaFecha)}${a.al.bajaMotivo?' · '+esc(a.al.bajaMotivo):''}. No puede entrar en la app; la escuela conserva su expediente.</p><button class="btn ghost" data-act="reactivar" data-al="${al}">Volver a dar de alta</button></div>`
   :`<div class="card" style="display:grid;gap:8px;border-color:var(--warn)"><span class="lbl">Dar de baja</span><p class="sm">Para un alumno que deja la escuela: deja de tener acceso a la app, se cancelan sus clases y la escuela conserva todo su expediente (ficha, vuelos, notas y horas).</p><input id="bm" placeholder="Motivo (opcional)"><button class="btn ghost" style="color:var(--warn)" data-act="baja" data-al="${al}">${S.confirm==='bj'+al?'Pulsa otra vez para dar de baja':'Dar de baja'}</button></div>`)+`<div class="card" style="display:grid;gap:8px;border-color:var(--bad)"><span class="lbl">Borrar alumno</span><p class="sm">Borra a ${esc(nombre1(a.nombre))} de la escuela con su ficha, sus vuelos, notas, horas y clases. Úsalo solo para un alta hecha por error: no se puede deshacer.</p><button class="btn danger" data-act="borrar-alumno" data-al="${al}">${S.confirm==='ba'+al?'Pulsa otra vez para borrar a '+esc(a.nombre)+' y todos sus datos':'Borrar alumno'}</button></div>`;
   else h+=`<div class="sm">Toca para marcar el estado de cada lección. El alumno lo ve al momento.</div>`+programaHTML(al,true)+teoricoHTML(al,true)+`<div class="card" style="display:grid;gap:6px"><span class="lbl">Comentario para el alumno</span><textarea id="com" rows="2" placeholder="Lo verá en su Inicio y en Formación"></textarea><button class="btn sm" data-act="add-com" data-al="${al}">Enviar comentario</button></div>`;
-  if(esPrincipal()&&a.al.estado==='formacion')h+=`<div class="card" style="display:grid;gap:8px;border-color:var(--ok)"><span class="lbl">Cuenta Aeroclub</span><div class="field"><label>Instructor asignado</label><select data-instr="${al}">${instructores().map(i=>`<option value="${i.id}" ${i.id===a.al.instructor?'selected':''}>${esc(i.nombre)}</option>`).join('')}</select></div><button class="btn" style="background:var(--ok)" data-act="pasar" data-al="${al}">✓ Ha aprobado: pasar a piloto</button></div>`;
+  if(esPrincipal()&&a.al.estado==='formacion')h+=`<div class="card" style="display:grid;gap:8px;border-color:var(--ok)"><span class="lbl">Cuenta Aeroclub</span><div class="field"><label>Instructor asignado</label><select data-instr="${al}">${instructores().map(i=>`<option value="${i.id}" ${i.id===a.al.instructor?'selected':''}>${esc(i.nombre)}</option>`).join('')}</select></div>
+  <div class="field"><label>Instructores suplentes <span class="sm">(pueden dar clase si el principal no puede)</span></label><div class="chips">${instructores().filter(i=>i.id!==a.al.instructor).map(i=>`<button class="${supDe(al).includes(i.id)?'on':''}" data-act="tog-sup" data-al="${al}" data-id="${i.id}">${supDe(al).includes(i.id)?'✓ ':''}${esc(i.nombre)}</button>`).join('')||'<span class="sm">No hay más instructores.</span>'}</div></div><button class="btn" style="background:var(--ok)" data-act="pasar" data-al="${al}">✓ Ha aprobado: pasar a piloto</button></div>`;
   return h;
 }
 function sueltaHTML(al){
@@ -713,7 +726,7 @@ function sueltaHTML(al){
   if(s)return `<div class="card" style="display:grid;gap:8px;border-color:var(--sp)"><div class="row"><span class="lbl">Suelta concedida</span><span class="chip sp">${A(s.avion).mat}</span></div>
    <div class="line"><span>Desde</span><b>${fNum(s.desde)}</b></div><div class="line"><span>Concedida por</span><b>${esc(UN(s.por).nombre)}</b></div><div class="line" style="display:block"><span class="sm">Condiciones</span><div>${esc(s.cond)}</div></div>
    <button class="btn danger" data-act="quitar-suelta" data-al="${al}">${S.confirm==='qs'+al?'Pulsa otra vez para retirar la suelta':'Retirar la suelta'}</button>
-   <p class="sm">Con la suelta, el alumno puede anotar vuelos «Solo supervisado» en este avión, siempre indicando el instructor en tierra.</p></div>`;
+   <p class="sm">Con la suelta, podrás anotarle vuelos «Solo supervisado» en este avión, siempre indicando el instructor en tierra.</p></div>`;
   const ok=f1&&l11&&med;
   const r=(c,t)=>`<div class="req"><i class="${c?'y':'n'}">${c?'✓':'—'}</i><span>${t}</span></div>`;
   const n1=PROGRAMA[0].lecciones.filter(([n])=>estadoLec(al,n)==='ok').length;
@@ -723,26 +736,26 @@ function sueltaHTML(al){
    <div class="field"><label>Condiciones</label><input id="sc" value="Circuitos en LEIG · viento máx. 10 kt · instructor en tierra"></div>
    ${ok?'':`<div class="field"><label>Motivo para darla sin cumplir los requisitos</label><input id="sm" placeholder="Obligatorio si falta algún requisito"></div>`}
    <button class="btn" style="background:var(--sp)" data-act="dar-suelta" data-al="${al}">Dar la suelta a ${esc(nombre1(a.nombre))}</button>
-   <p class="sm">Desde ese momento podrá anotar vuelos «Solo supervisado» en ese avión, siempre indicando el instructor en tierra. Puedes retirarla cuando quieras.</p></div>`;
+   <p class="sm">Desde ese momento podrás anotarle vuelos «Solo supervisado» en ese avión, siempre indicando el instructor en tierra. Puedes retirarla cuando quieras.</p></div>`;
 }
 function iNotas(){
   if(S.vsel)return detalleVuelo(S.vsel,true);
   const p=pendientesDe(me().id);
   return `<div class="row"><h2>Notas pendientes</h2><span class="chip ${p.length?'warn':'ok'}">${p.length}</span></div>
-  ${p.map(v=>`<button class="card nt" data-act="ver-vuelo" data-id="${v.id}"><div class="row"><span class="lbl">Vuelo anotado por tu alumno</span><span class="sm">${fCorta(v.fecha)}</span></div><h3 style="margin-top:4px">${esc(UN(v.alumno).nombre)} · ${esc(lecTxt(v.leccion))}</h3><div class="sm">${A(v.avion).mat} · ${hmTxt(v.min)} · ${TIPOS[v.tipo].toLowerCase()} · ${v.tomas} toma${+v.tomas===1?'':'s'}</div></button>`).join('')||'<div class="msg ok">✓ Todas las clases tienen nota.</div>'}
-  <p class="sm">Cuando un alumno anota un vuelo contigo, aparece aquí. El vuelo ya está en tu logbook como instructor.</p>`;
+  ${p.map(v=>`<button class="card nt" data-act="ver-vuelo" data-id="${v.id}"><div class="row"><span class="lbl">Vuelo sin nota</span><span class="sm">${fCorta(v.fecha)}</span></div><h3 style="margin-top:4px">${esc(UN(v.alumno).nombre)} · ${esc(lecTxt(v.leccion))}</h3><div class="sm">${A(v.avion).mat} · ${hmTxt(v.min)} · ${TIPOS[v.tipo].toLowerCase()} · ${v.tomas} toma${+v.tomas===1?'':'s'}</div></button>`).join('')||'<div class="msg ok">✓ Todas las clases tienen nota.</div>'}
+  <p class="sm">Aquí salen los vuelos de tus alumnos que aún no tienen nota. El vuelo ya está en tu logbook como instructor.</p>`;
 }
 function formNota(v){
   if(!puedeGestionar(v.alumno)||(!esPrincipal()&&v.instructor!==S.user))return `<div class="msg warn">Pendiente de nota de ${esc(UN(v.instructor).nombre)}.</div>`;
   const N=S.nota&&S.nota.id===v.id?S.nota:(S.nota={id:v.id,g:LEC(v.leccion).ej.map(()=>0),res:'ok',com:'',prox:'',lle:horoTxt(v.horoLle,A(v.avion))});
   if(!LEC(v.leccion).ej.length)return `<div class="card" style="display:grid;gap:8px"><span class="lbl">Vuelo de práctica</span><p class="sm">Sin lección ni ejercicios que puntuar: deja un comentario si quieres.</p><div class="field"><label>Comentario para ${esc(nombre1(UN(v.alumno).nombre))}</label><textarea data-n="com" rows="3">${esc(N.com)}</textarea></div>
-   <div class="field"><label>Horómetro de llegada (corrígelo si el alumno se equivocó)</label><input data-n="lle" value="${esc(N.lle)}" style="font-family:var(--f-mono)"></div></div><button class="btn full" data-act="guardar-nota" data-id="${v.id}">Dar por revisado</button>`;
+   <div class="field"><label>Horómetro de llegada (corrígelo si hace falta)</label><input data-n="lle" value="${esc(N.lle)}" style="font-family:var(--f-mono)"></div></div><button class="btn full" data-act="guardar-nota" data-id="${v.id}">Dar por revisado</button>`;
   return `<div class="card"><span class="lbl">Ejercicios</span>${LEC(v.leccion).ej.map((e,i)=>`<div class="ex"><span>${esc(e)}</span><span class="grade">${[1,2,3,4].map(g=>`<button class="${N.g[i]===g?'g'+g:''}" data-act="grado" data-i="${i}" data-v="${g}" title="${GRADOS[g]}">${g}</button>`).join('')}</span></div>`).join('')}
    <p class="sm" style="margin-top:6px">1 a repetir · 2 mejorable · 3 bien · 4 dominado</p>
    <div class="field" style="margin-top:8px"><label>Resultado de la lección</label><div class="chips">${[['ok','Logrado'],['pr','En curso'],['rep','A repetir']].map(([k,t])=>`<button class="${N.res===k?'on':''}" data-act="nres" data-v="${k}">${t}</button>`).join('')}</div></div></div>
    <div class="card" style="display:grid;gap:8px"><div class="field"><label>Comentario para ${esc(nombre1(UN(v.alumno).nombre))}</label><textarea data-n="com" rows="3">${esc(N.com)}</textarea></div>
    <div class="field"><label>Próxima clase</label><input data-n="prox" value="${esc(N.prox)}" placeholder="Qué preparar"></div>
-   <div class="field"><label>Horómetro de llegada (corrígelo si el alumno se equivocó)</label><input data-n="lle" value="${esc(N.lle)}" style="font-family:var(--f-mono)"></div></div>
+   <div class="field"><label>Horómetro de llegada (corrígelo si hace falta)</label><input data-n="lle" value="${esc(N.lle)}" style="font-family:var(--f-mono)"></div></div>
    <button class="btn full" data-act="guardar-nota" data-id="${v.id}">Guardar nota</button>`;
 }
 function lunes(s){const d=new Date(s+'T12:00'),w=(d.getDay()+6)%7;return addDays(s,-w)}
@@ -767,7 +780,7 @@ function iReservas(){
   <div class="card">${cl.map(c=>`<div class="line"><span><b>${fCorta(c.fecha)} · ${c.desde}–${c.hasta}</b> · ${A(c.avion).mat}<br><span class="sm">${esc(UN(c.alumno).nombre)} · ${esc(lecTxt(c.leccion))}</span></span><button class="btn sm danger" data-act="cancelar-clase" data-id="${c.id}">${S.confirm==='cc'+c.id?'¿Cancelar?':'Cancelar'}</button></div>`).join('')||'<p class="sm">No hay clases reservadas.</p>'}</div>`;
 }
 function modalClase(){
-  const f=S.modal,mis=alumnos().filter(a=>esPrincipal()||a.al.instructor===S.user);
+  const f=S.modal,mis=alumnos().filter(a=>esPrincipal()||esMio(a.id));
   if(!f.alumno&&mis[0])f.alumno=mis[0].id;
   const al=+f.alumno,err=errClase();
   return `<h3>Reservar clase de escuela</h3>
@@ -807,11 +820,11 @@ function vPrincipal(){
    <div class="card"><span class="lbl">Notas pendientes</span><div class="big">${pendientesDe(null).length}</div><span class="sm">de los instructores</span></div>
    <div class="card" style="${aten.length?'border-color:var(--warn)':''}"><span class="lbl">Necesitan atención</span><div class="big" style="${aten.length?'color:var(--warn)':''}">${aten.length}</div><span class="sm">parados o con pocas horas</span></div></div>
   <div class="card"><span class="lbl">Alumnos · ${al.length}</span><div class="scroll"><table><tr><th>Alumno</th><th>Instructor</th><th>Fase</th><th>Progreso</th><th class="n">Horas</th><th>Estado</th><th></th></tr>
-   ${al.map(a=>{const [k,t]=estadoAlumno(a.id),ex=DB.vuelos.some(v=>v.alumno===a.id&&v.tipo==='examen');return `<tr><td><b>${esc(a.nombre)}</b></td><td>${esc(UN(a.al.instructor).nombre)}</td><td>${faseActual(a.id).fase} · ${esc(faseActual(a.id).titulo)}</td><td style="min-width:120px"><div class="pbar" style="margin:6px 0 0"><i style="width:${pct(a.id)}%"></i></div><span class="sm">${pct(a.id)} %</span></td><td class="n ${saldo(a.id)<0?'neg':''}">${hm(saldo(a.id))}</td><td><span class="chip ${k}">${t}</span></td><td style="white-space:nowrap">${ex?`<button class="btn sm" style="background:var(--ok)" data-act="pasar" data-al="${a.id}">Pasar a piloto</button> `:''}<button class="btn sm ghost" data-act="ficha" data-id="${a.id}">Ver</button></td></tr>`}).join('')||'<tr><td colspan="7" class="sm">No hay alumnos.</td></tr>'}</table></div></div>
+   ${al.map(a=>{const [k,t]=estadoAlumno(a.id),ex=DB.vuelos.some(v=>v.alumno===a.id&&v.tipo==='examen');return `<tr><td><b>${esc(a.nombre)}</b></td><td>${esc(UN(a.al.instructor).nombre)}${supDe(a.id).length?`<br><span class="sm">+ ${supDe(a.id).map(x=>esc(nombre1(UN(x).nombre))).join(', ')}</span>`:''}</td><td>${faseActual(a.id).fase} · ${esc(faseActual(a.id).titulo)}</td><td style="min-width:120px"><div class="pbar" style="margin:6px 0 0"><i style="width:${pct(a.id)}%"></i></div><span class="sm">${pct(a.id)} %</span></td><td class="n ${saldo(a.id)<0?'neg':''}">${hm(saldo(a.id))}</td><td><span class="chip ${k}">${t}</span></td><td style="white-space:nowrap">${ex?`<button class="btn sm" style="background:var(--ok)" data-act="pasar" data-al="${a.id}">Pasar a piloto</button> `:''}<button class="btn sm ghost" data-act="ficha" data-id="${a.id}">Ver</button></td></tr>`}).join('')||'<tr><td colspan="7" class="sm">No hay alumnos.</td></tr>'}</table></div></div>
   <div class="grid3"><div class="card"><span class="lbl">Instructores</span>${instructores().length?'':'<p class="sm" style="margin:4px 0">Todavía no hay instructores: nómbralos entre los socios con licencia de instructor.</p>'}${instructores().map(i=>`<div class="line"><span><b>${esc(i.nombre)}</b></span><span class="sm">${al.filter(a=>a.al.instructor===i.id).length} alumno${al.filter(a=>a.al.instructor===i.id).length===1?'':'s'} · ${pendientesDe(i.id).length} notas pend.</span></div>`).join('')}<button class="btn sm ghost" style="margin-top:6px" data-act="instructores">Nombrar o quitar instructor</button></div>
   ${bajas().length?`<div class="card"><span class="lbl">De baja · expediente guardado</span>${bajas().map(p=>`<div class="line"><span><b>${esc(p.nombre)}</b><br><span class="sm">Baja el ${fNum(p.al.bajaFecha)}${p.al.bajaMotivo?' · '+esc(p.al.bajaMotivo):''}</span></span><button class="btn sm ghost" data-act="ficha" data-id="${p.id}">Ver</button></div>`).join('')}</div>`:''}
   ${pil.length?`<div class="card"><span class="lbl">Salieron de la escuela</span>${pil.map(p=>`<div class="line"><span><b>${esc(p.nombre)}</b><br><span class="sm">Licencia ${esc(p.al.licencia)} · ${fNum(p.al.examen)}</span></span><span class="chip ok">Piloto</span></div>`).join('')}</div>`:''}
-  <div class="card"><span class="lbl">Quién puede hacer qué</span><div class="line"><span>Nombrar instructores · pasar a piloto</span><span class="chip sp">Solo Aeroclub</span></div><div class="line"><span>Alta, modificar y borrar alumnos y sus datos</span><span class="chip">Aeroclub e instructores</span></div><div class="line"><span>Clases, horas, progreso, notas y sueltas</span><span class="chip">Instructores</span></div><div class="line"><span>Ver su formación y ficha, anotar sus vuelos</span><span class="chip ok">Alumno</span></div></div></div></div>`;
+  <div class="card"><span class="lbl">Quién puede hacer qué</span><div class="line"><span>Nombrar instructores y suplentes · pasar a piloto</span><span class="chip sp">Solo Aeroclub</span></div><div class="line"><span>Alta, modificar y borrar alumnos y sus datos</span><span class="chip">Aeroclub e instructores</span></div><div class="line"><span>Clases, anotar vuelos, notas, progreso, horas y sueltas</span><span class="chip">Instructores y suplentes</span></div><div class="line"><span>Ver su formación, vuelos, notas y ficha</span><span class="chip ok">Alumno</span></div></div></div></div>`;
   return h;
 }
 function modalAlta(){const f=S.modal,inp=(k,l,t,ph)=>`<div class="field"><label>${l}</label><input data-m="${k}" ${t?'type="'+t+'"':''} value="${esc(f[k]||'')}" ${ph?'placeholder="'+ph+'"':''}></div>`;
@@ -875,19 +888,21 @@ const act={
  salir:()=>{S.modal={kind:'salir'};render()},
  'salir-ok':()=>{S.modal=null;try{API.signOut()}catch(x){}setTimeout(()=>location.replace('index.html'),300)},
  _reset:()=>{if(S.confirm!=='reset'){S.confirm='reset';return toast('Pulsa otra vez «Reiniciar datos» para volver a los datos de ejemplo.')}S.confirm=null;DB=semilla();save();S.user=null;S.modal=null;try{sessionStorage.removeItem(KEY+'_u')}catch(x){}toast('Datos de ejemplo restaurados.')},
- view:e=>{S.view=e.dataset.v;S.sel=null;S.vsel=null;S.nota=null;S.edit=null;render();window.scrollTo(0,0)},
+ view:e=>{S.view=e.dataset.v;S.anotar=null;S.f=null;S.sel=null;S.vsel=null;S.nota=null;S.edit=null;render();window.scrollTo(0,0)},
  parte:e=>{const v=e.dataset.v;if(v==='escuela'){S.view='inicio';S.sel=null;S.vsel=null;render();window.scrollTo(0,0);return}irA(v)},
- ficha:e=>{S.sel=+e.dataset.id;S.vsel=null;S.edit=null;S.tab=esPrincipal()?'Datos':'Progreso';if(me().instructor&&me().rol!=='principal')S.view='alumnos';render();window.scrollTo(0,0)},
- 'cerrar-ficha':()=>{S.sel=null;S.vsel=null;render();window.scrollTo(0,0)},
+ ficha:e=>{S.anotar=null;S.f=null;S.sel=+e.dataset.id;S.vsel=null;S.edit=null;S.tab=esPrincipal()?'Datos':'Progreso';if(me().instructor&&me().rol!=='principal')S.view='alumnos';render();window.scrollTo(0,0)},
+ 'cerrar-ficha':()=>{S.anotar=null;S.f=null;S.sel=null;S.vsel=null;render();window.scrollTo(0,0)},
  tab:e=>{S.tab=e.dataset.v;S.vsel=null;render.keep=true;render()},
  ftab:e=>{S.ftab=e.dataset.v;render.keep=true;render()},
  'ver-vuelo':e=>{S.vsel=+e.dataset.id;S.nota=null;render();window.scrollTo(0,0)},
  'cerrar-vuelo':()=>{S.vsel=null;S.nota=null;render();window.scrollTo(0,0)},
  f:e=>{S.f[e.dataset.k]=e.dataset.v;if(e.dataset.k==='avion')S.f.llegada='';render.keep=true;render()},
  'guardar-vuelo':()=>{const f=S.f,e=errVuelo();if(e.length)return toast(e[0]);const a=A(f.avion),ll=parseHoro(f.llegada,A(f.avion));
-   const v={id:nid(),alumno:f.al,instructor:+f.instructor,examinador:f.tipo==='examen'?f.examinador.trim():'',avion:+f.avion,tipo:f.tipo,leccion:+f.leccion,fecha:today(),hora:f.hora,salida:f.salida.trim()||'Igualada-Òdena',destino:f.destino.trim()||'Igualada-Òdena',horoSal:a.horo,horoLle:ll,min:ll-a.horo,tomas:+f.tomas,nota:null,creado:today()};
-   v.clase=f.clase||null;DB.vuelos.push(v);a.horo=ll;save();S.f=null;S.view='diario';
-   toast('Vuelo guardado: '+hmTxt(v.min)+'. Te quedan '+hmTxt(saldo(v.alumno))+'. '+(v.tipo==='examen'?'¡Suerte con el resultado!':v.tipo==='dm'?UN(v.instructor).nombre+' ya lo tiene en su logbook.':UN(v.instructor).nombre+' lo revisará.'));window.scrollTo(0,0)},
+   const v={id:nid(),alumno:f.al,instructor:+f.instructor,examinador:f.tipo==='examen'?f.examinador.trim():'',avion:+f.avion,tipo:f.tipo,leccion:+f.leccion,fecha:f.fecha||today(),hora:f.hora,salida:f.salida.trim()||'Igualada-Òdena',destino:f.destino.trim()||'Igualada-Òdena',horoSal:a.horo,horoLle:ll,min:ll-a.horo,tomas:+f.tomas,nota:null,creado:today()};
+   v.clase=f.clase||null;DB.vuelos.push(v);a.horo=ll;if(v.leccion&&!estadoLec(f.al,v.leccion))(DB.progreso[f.al]=DB.progreso[f.al]||{})[v.leccion]='pr';S.vselHasta=Date.now()+6000;save();S.f=null;S.anotar=null;S.vsel=v.id;S.nota=null;
+   toast('Vuelo guardado: '+hmTxt(v.min)+'. Al alumno le quedan '+hmTxt(saldo(v.alumno))+'.'+(v.tipo==='examen'?'':' Ponle ahora la nota de la clase.'));window.scrollTo(0,0)},
+ 'anotar-vuelo':e=>{const al=+e.dataset.al;S.sel=al;S.vsel=null;S.nota=null;S.f=null;S.anotar=al;if(me().instructor&&me().rol!=='principal')S.view='alumnos';render();window.scrollTo(0,0)},
+ 'cancelar-vuelo':()=>{S.f=null;S.anotar=null;render();window.scrollTo(0,0)},
  grado:e=>{S.nota.g[+e.dataset.i]=+e.dataset.v;render.keep=true;render()},
  nres:e=>{S.nota.res=e.dataset.v;render.keep=true;render()},
  'guardar-nota':e=>{const v=DB.vuelos.find(x=>x.id===+e.dataset.id),N=S.nota;if(N.g.some(g=>!g))return toast('Puntúa todos los ejercicios (1 a 4).');
@@ -933,13 +948,14 @@ const act={
  'guardar-ficha':e=>{const al=+e.dataset.al,u=U(al),d=S.dd||{};if(Object.keys(d).length===0){S.edit=null;render.keep=true;return render()}
    for(const [k,v] of Object.entries(d)){if(['nombre','email'].includes(k))u[k]=v.trim();else u.al[k]=v.trim()}
    S.edit=null;S.dd={};save();render.keep=true;toast('Ficha actualizada.')},
- 'copiar-ficha':e=>{const u=U(+e.dataset.al),t=CAMPOS.map(([k,l,ty])=>l+': '+(ty==='date'?fNum(valCampo(u,k)):valCampo(u,k)||'—')).join('\n')+'\nInstructor: '+UN(u.al.instructor).nombre;
+ 'copiar-ficha':e=>{const u=U(+e.dataset.al),t=CAMPOS.map(([k,l,ty])=>l+': '+(ty==='date'?fNum(valCampo(u,k)):valCampo(u,k)||'—')).join('\n')+'\nInstructor: '+UN(u.al.instructor).nombre+(supDe(u.id).length?'\nSuplentes: '+supDe(u.id).map(x=>UN(x).nombre).join(', '):'');
    const ok=()=>toast('Ficha copiada. Pégala en un documento para imprimirla o archivarla.');try{navigator.clipboard.writeText('Ficha del alumno · Aeroclub Igualada-Òdena-Anoia\n'+t).then(ok,()=>toast('No se ha podido copiar en este navegador.'))}catch(x){toast('No se ha podido copiar en este navegador.')}},
  wk:e=>{S.wk=addDays(S.wk||lunes(today()),+e.dataset.v);render.keep=true;render()},
  wkhoy:()=>{S.wk=null;render.keep=true;render()},
  pins:e=>{S.pins=e.dataset.v;render.keep=true;render()},
  instructores:()=>{S.modal={kind:'instructores'};render()},
- 'tog-instr':e=>{const u=U(+e.dataset.id);if(u.instructor&&alumnos().some(a=>a.al.instructor===u.id))return toast(u.nombre+' tiene alumnos asignados: pásalos antes a otro instructor (en la ficha de cada alumno).');u.instructor=!u.instructor;save();render.keep=true;render()},
+ 'tog-sup':e=>{const a=U(+e.dataset.al),id=+e.dataset.id,l=a.al.suplentes=(a.al.suplentes||[]).filter(x=>x!==a.al.instructor);const i=l.indexOf(id);if(i>=0)l.splice(i,1);else l.push(id);save();render.keep=true;render();toast(UN(id).nombre+(i>=0?' ya no es suplente de ':' es ahora suplente de ')+a.nombre+'.')},
+ 'tog-instr':e=>{const u=U(+e.dataset.id);if(u.instructor&&alumnos().some(a=>a.al.instructor===u.id))return toast(u.nombre+' tiene alumnos asignados: pásalos antes a otro instructor (en la ficha de cada alumno).');u.instructor=!u.instructor;if(!u.instructor)alumnos().forEach(a=>{if(a.al.suplentes)a.al.suplentes=a.al.suplentes.filter(x=>x!==u.id)});save();render.keep=true;render()},
  pasar:e=>{const al=+e.dataset.al;S.modal={kind:'pasar',al,fecha:'',licencia:'',avion:(DB.aviones[0]||{}).id,reservas:'1'};render()},
  'confirmar-pasar':()=>{const f=S.modal,a=U(f.al);if(!String(f.licencia).trim())return toast('Escribe el número de licencia.');
    const sal=saldo(a.id),res=!!f.reservas,av=+f.avion,em=String(a.email||'').toLowerCase(),ou=raw('usuarios').get(String(a.id))||{};
@@ -968,7 +984,7 @@ document.addEventListener('change',e=>{const t=e.target;
   if(t.dataset.f&&S.f){S.f[t.dataset.f]=t.value;if(t.tagName==='SELECT'){render.keep=true;render()}}
   if(t.dataset.m&&S.modal){S.modal[t.dataset.m]=t.value;if(t.dataset.m==='alumno')S.modal.leccion=proxLeccion(+t.value).n;if(t.tagName==='SELECT'||t.type==='date'){render.keep=true;render()}}
   if(t.dataset.d!==undefined){(S.dd=S.dd||{})[t.dataset.d]=t.value}
-  if(t.dataset.instr){const a=U(+t.dataset.instr);a.al.instructor=+t.value;save();toast(a.nombre+' pasa a ser alumno de '+UN(+t.value).nombre+'.')}});
+  if(t.dataset.instr){const a=U(+t.dataset.instr);a.al.instructor=+t.value;if(a.al.suplentes)a.al.suplentes=a.al.suplentes.filter(x=>x!==+t.value);save();toast(a.nombre+' pasa a ser alumno de '+UN(+t.value).nombre+'.')}});
 arrancar();
 })();
 
