@@ -60,7 +60,10 @@ input[readonly]{background:var(--bg);color:var(--muted)}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 .two>*,.three>*{min-width:0}
 input[type=date]{min-width:0;max-width:100%}
+.trsel{cursor:pointer}.trsel.on td{background:var(--soft)}@media(max-width:600px){.vercol{display:none}}
 .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media(max-width:600px){.three.st1{grid-template-columns:1fr}.three.st2{grid-template-columns:1fr 1fr}.three.st2>:last-child{grid-column:1/-1}.three.st3{grid-template-columns:1fr 1fr}.three.st3>:first-child{grid-column:1/-1}}
+#ficha-sel{scroll-margin-top:100px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{border:1px solid var(--line);background:var(--surface);padding:5px 11px;border-radius:99px;font-size:.78rem;font-weight:500;cursor:pointer}
 .chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -331,13 +334,16 @@ function regOps(ops){
     const cuando=ymd(now)+' '+pad2(now.getHours())+':'+pad2(now.getMinutes())+':'+pad2(now.getSeconds());
     const id=String(nid());ops.push({op:'set',col:'registro',id,data:{id,ms,cuando,por:em,por_id:yo,por_nombre:(me()&&me().nombre)||em,cat:d[0],txt:String(d[1]).slice(0,600)}})});
 }
+const hace=d=>{const x=new Date();x.setDate(x.getDate()-d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 function escuchar(adm,yo){
   UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];PENDIENTES=new Set();
   const L=(col,filtro)=>{RAW[col]=new Map();PENDIENTES.add(col);
     UNSUB.push(API.listen(col,filtro||null,docs=>{const m=new Map();docs.forEach(d=>m.set(d.id,d.data));RAW[col]=m;PENDIENTES.delete(col);rebuild();pintar()},
       e=>{PENDIENTES.delete(col);console.error(col,e);pintar()}))};
-  ['usuarios','aviones','reservas','bloqueos','suelto'].forEach(c=>L(c));
-  if(window.ES_PRINCIPAL)L('registro');
+  ['usuarios','aviones','bloqueos','suelto'].forEach(c=>L(c));
+  // los socios solo descargan las reservas recientes y futuras (el administrador, todas, para el historial y las descargas)
+  L('reservas',adm?null:{field:'fin',op:'>=',value:hace(30)});
+  if(window.ES_PRINCIPAL)L('registro',{order:'ms',limit:1000});
   if(adm)L('estadisticas');
   if(adm)['usuarios_privado','usuarios_admin','vuelos','bonos','ajustes','historial','calibraciones','cuentas'].forEach(c=>L(c));
   else{L('usuarios_privado',{docId:String(yo)});L('vuelos',{field:'piloto_id',value:yo});L('bonos',{field:'usuario_id',value:yo});L('ajustes',{field:'usuario_id',value:yo})}
@@ -364,7 +370,7 @@ async function crearApiFirebase(){
     getDoc:async(c,id)=>{const s=await Fs.getDoc(Fs.doc(db,c,id));return s.exists()?s.data():null},
     listen:(c,f,cb,err)=>{
       if(f&&f.docId)return Fs.onSnapshot(Fs.doc(db,c,f.docId),s=>cb(s.exists()?[{id:s.id,data:s.data()}]:[]),err);
-      const ref=f?Fs.query(Fs.collection(db,c),Fs.where(f.field,'==',f.value)):Fs.collection(db,c);
+      const cs=[];if(f&&f.field)cs.push(Fs.where(f.field,f.op||'==',f.value));if(f&&f.order)cs.push(Fs.orderBy(f.order,'desc'));if(f&&f.limit)cs.push(Fs.limit(f.limit));const ref=cs.length?Fs.query(Fs.collection(db,c),...cs):Fs.collection(db,c);
       return Fs.onSnapshot(ref,s=>cb(s.docs.map(d=>({id:d.id,data:d.data()}))),err)},
     commit:async ops=>{for(let i=0;i<ops.length;i+=400){const w=Fs.writeBatch(db);ops.slice(i,i+400).forEach(o=>o.op==='delete'?w.delete(Fs.doc(db,o.col,o.id)):w.set(Fs.doc(db,o.col,o.id),o.data));await w.commit()}},
     crearCuenta:async email=>{const sec=A_.initializeApp(FIREBASE_CONFIG,'alta'+Date.now()),sa=Au.getAuth(sec);let estado='creada';
@@ -408,8 +414,11 @@ function sinRecencia(uid){ // regla del administrador: si no ha volado en N mese
   const u=U(uid);if(!u||!u.recencia_meses)return false;const d=new Date(today()+'T12:00');d.setMonth(d.getMonth()-u.recencia_meses);const lim=ymd(d);const ul=ultimoVuelo(uid);return !ul||ul<lim}
 const necesitaSP=(uid,aid)=>!esSuelto(uid,aid)||sinRecencia(uid);
 const vuelosValidos=a=>DB.vuelos.filter(v=>v.avion_id===a&&v.estado!=='anulado');
+let _EH=null; // caché de eventos del horómetro, solo mientras se pinta la pantalla
 function eventosHoro(a){ // vuelos válidos y calibraciones, en orden de registro
-  return [...vuelosValidos(a).map(v=>({id:v.id,valor:v.horometro_llegada_min,v})),...(DB.calibraciones||[]).filter(c=>c.avion_id===a).map(c=>({id:c.id,valor:c.nuevo_min,c}))].sort((x,y)=>x.id-y.id);
+  if(_EH&&_EH.has(a))return _EH.get(a);
+  const r=[...vuelosValidos(a).map(v=>({id:v.id,valor:v.horometro_llegada_min,v})),...(DB.calibraciones||[]).filter(c=>c.avion_id===a).map(c=>({id:c.id,valor:c.nuevo_min,c}))].sort((x,y)=>x.id-y.id);
+  if(_EH)_EH.set(a,r);return r;
 }
 function horoCalc(a){const e=eventosHoro(a);return e.length?e[e.length-1].valor:A(a).horometro_inicial_min}
 function horoActual(a){const av=A(a);if(!av)return 0;if(esAdminCuenta())return horoCalc(a);return av.horo_actual!=null?av.horo_actual:av.horometro_inicial_min}
@@ -432,7 +441,8 @@ function avionesConHoras(uid){const ids=new Set(avionesPara(uid).map(a=>a.id));
   DB.bonos.filter(b=>b.usuario_id===uid).forEach(b=>ids.add(avDe(b)));DB.ajustes.filter(a=>a.usuario_id===uid).forEach(a=>ids.add(avDe(a)));
   DB.vuelos.filter(v=>v.piloto_id===uid&&v.estado!=='anulado'&&v.descuenta_bono).forEach(v=>ids.add(v.avion_id));
   return DB.aviones.filter(a=>ids.has(a.id)).sort((a,b)=>(a.activo===false)-(b.activo===false)||a.matricula.localeCompare(b.matricula))}
-function cuentaHoras(uid,aid){
+function cuentaHoras(uid,aid){const k='h'+uid+'|'+aid;if(_EH&&_EH.has(k))return _EH.get(k);const r=cuentaHoras_(uid,aid);if(_EH)_EH.set(k,r);return r}
+function cuentaHoras_(uid,aid){
   if(aid==null){const all={mov:[],pools:[],deuda:0};avionesConHoras(uid).forEach(a=>{const c=cuentaHoras(uid,a.id);all.mov.push(...c.mov.map(m=>({...m,avion_id:a.id})));all.pools.push(...c.pools);all.deuda+=c.deuda});return all}
   const hoy=today(),ev=[];
   DB.bonos.filter(b=>b.usuario_id===uid&&avDe(b)===aid).forEach(b=>{ev.push({k:b.fecha+'0'+b.fecha,t:'bono',b});const c=caducaDe(b);if(c&&c<hoy)ev.push({k:c+'9',t:'cad',b})});
@@ -475,7 +485,8 @@ function conflictoAvion(avion,ini,fin,excluir){
 }
 function log(accion,vuelo_id,cambios,motivo){DB.historial.push({id:nid(),vuelo_id,accion,cambios,motivo,usuario_id:S.user,fecha:ahora()})}
 function cadenaRota(v){ // la salida no coincide con la llegada del vuelo anterior del mismo avión
-  const prev=eventosHoro(v.avion_id).filter(e=>e.id<v.id).pop();
+  const ev=eventosHoro(v.avion_id);let lo=0,hi=ev.length;while(lo<hi){const m=(lo+hi)>>1;if(ev[m].id<v.id)lo=m+1;else hi=m}
+  const prev=lo?ev[lo-1]:null;
   const esperado=prev?prev.valor:A(v.avion_id).horometro_inicial_min;
   return v.horometro_salida_min!==esperado?v.horometro_salida_min-esperado:0;
 }
@@ -832,6 +843,7 @@ function aRegistro(){
   ${todos.length>lim?`<button class="btn sm ghost" data-act="rmas">Mostrar más (${todos.length-lim} restantes)</button>`:''}
   <p class="sm">${todos.length} acciones${F.cat||F.por||F.d1||F.d2?' con estos filtros':''}.</p>`;
 }
+const verMas=(k,arr,txt)=>arr.length<=6||S.ver===k?arr.join(''):arr.slice(0,5).join('')+`<button class="btn sm ghost" style="width:100%;margin:6px 0" data-act="ver-todo" data-v="${k}">Ver los ${arr.length} ${txt}</button>`;
 function aResumen(){
   const rev=DB.vuelos.filter(v=>v.estado==='por_revisar');
   const apr=DB.vuelos.filter(v=>v.aprobacion==='pendiente'&&v.estado!=='anulado');
@@ -853,8 +865,9 @@ function aResumen(){
   <div class="cols"><div class="card"><h3 style="margin-bottom:6px">Atención</h3>
    ${rev.map(v=>`<div class="line"><span><span class="chip bad">Revisar</span> ${A(v.avion_id).matricula} · ${esc(nombre(v.piloto_id))} · ${fmtCorto(v.fecha)}<br><span class="sm">«${esc(v.nota_piloto)}»</span></span><button class="btn sm" data-act="editar-vuelo" data-id="${v.id}">Revisar</button></div>`).join('')}
    ${apr.map(v=>`<div class="line"><span><span class="chip warn">Divulgación</span> ${A(v.avion_id).matricula} · ${esc(nombre(v.piloto_id))} · ${fmtCorto(v.fecha)} · ${fmtMin(minutosVuelo(v))}</span><span style="display:flex;gap:6px"><button class="btn sm" data-act="div-aprobar" data-id="${v.id}">Aprobar</button><button class="btn sm ghost" data-act="div-rechazar" data-id="${v.id}">${S.confirm==='dr'+v.id?'¿Pasar a normal?':'Rechazar'}</button></span></div>`).join('')}
-   ${sinMant.map(x=>`<div class="line"><span><span class="chip warn">Mantenimiento</span> ${esc(x.u.nombre)} · ${x.a.matricula}</span><span class="sm">sin paquete de mantenimiento esta temporada</span></div>`).join('')}
-   ${negs.map(x=>`<div class="line"><span><span class="chip bad">Saldo</span> ${esc(x.u.nombre)} · ${x.a.matricula}</span><b class="neg">${fmtMin(x.s)}</b></div>`).join('')}
+   ${(()=>{const g=new Map();sinMant.forEach(x=>{if(!g.has(x.u.id))g.set(x.u.id,{u:x.u,av:[]});g.get(x.u.id).av.push(x.a.matricula)});
+     return verMas('mant',[...g.values()].map(x=>`<div class="line"><span><span class="chip warn">Mantenimiento</span> ${esc(x.u.nombre)}</span><span class="sm" style="text-align:right">sin paquete de mantenimiento esta temporada<br>${x.av.join(' · ')}</span></div>`),'pilotos sin paquete de mantenimiento')})()}
+   ${verMas('neg',negs.sort((a,b)=>a.s-b.s).map(x=>`<div class="line"><span><span class="chip bad">Saldo</span> ${esc(x.u.nombre)} · ${x.a.matricula}</span><b class="neg">${fmtMin(x.s)}</b></div>`),'saldos negativos')}
    ${spp.map(r=>`<div class="line"><span><span class="chip warn">SP ${r.sp_estado}</span> ${esc(quienRes(r))} · ${A(r.avion_id).matricula} · ${fmtCorto(r.inicio.slice(0,10))} ${r.inicio.slice(11)}</span><span class="sm">${esc(nombre(r.safety_pilot_id))}</span></div>`).join('')}
    ${revs.map(x=>`<div class="line"><span><span class="chip warn">Revisión</span> ${x.a.matricula} a ${fmtHoro(x.a,x.a.proxima_revision_min)}</span><span class="sm">faltan ${fmtMin(x.f)}</span></div>`).join('')}
    ${cad.map(c=>`<div class="line"><span><span class="chip ${c.dd<0?'bad':'warn'}">${c.n}</span> ${esc(c.u.nombre)}</span><span class="sm">${c.dd<0?'caducado el ':'caduca el '}${fmtCorto(c.f)}</span></div>`).join('')}
@@ -873,8 +886,9 @@ function aLogbook(){
   <div class="chips"><button class="${S.filtro==='todos'?'on':''}" data-act="filtro" data-v="todos">Todos</button>${DB.aviones.map(a=>`<button class="${S.filtro==='av'+a.id?'on':''}" data-act="filtro" data-v="av${a.id}">${a.matricula}</button>`).join('')}${TIPOS.map(([k,t])=>`<button class="${S.filtro===k?'on':''}" data-act="filtro" data-v="${k}">${t}</button>`).join('')}<button class="${S.filtro==='revisar'?'on':''}" data-act="filtro" data-v="revisar">Por revisar</button><button class="${S.filtro==='aprobar'?'on':''}" data-act="filtro" data-v="aprobar">Por aprobar</button>
   <select data-filtropil style="width:auto;min-height:32px;padding:4px 10px;border-radius:99px;font-size:.78rem"><option value="">Piloto: todos</option>${DB.usuarios.map(u=>`<option value="${u.id}" ${S.filtro==='pil'+u.id?'selected':''}>${esc(u.nombre)}${u.activo===false?' (de baja)':''}</option>`).join('')}</select></div>
   <div class="card scroll"><table><tr><th>Fecha</th><th>Avión</th><th>Piloto</th><th>A bordo</th><th>Tipo</th><th>Ruta</th><th class="n">Tomas</th><th class="n">Horómetro</th><th class="n">Tiempo</th><th class="n">Bono</th><th></th></tr>
-  ${[...(S.filtro==='todos'||S.filtro.startsWith('av')?(DB.calibraciones||[]).filter(c=>S.filtro==='todos'||c.avion_id===+S.filtro.slice(2)).map(c=>{const a=A(c.avion_id);return {k:c.fecha.replace(' ',''),h:`<tr><td>${fmtCorto(c.fecha.slice(0,10))}<br><span class="sm">${c.fecha.slice(11)}</span></td><td>${a.matricula}</td><td colspan="9"><span class="chip">Calibración</span> ${fmtHoro(a,c.anterior_min)} → <b>${fmtHoro(a,c.nuevo_min)}</b> · a nombre de ${esc(nombre(c.piloto_id))}${c.descuenta_bono?' (descontado)':''}${c.motivo?' · '+esc(c.motivo):''} · por ${esc(nombre(c.usuario_id))}</td></tr>`}}):[]),
-  ...vs.map(v=>{const a=A(v.avion_id),gap=v.estado!=='anulado'?cadenaRota(v):0;return {k:v.fecha+v.hora_salida,h:`<tr class="${v.estado==='anulado'?'off':(v.estado==='por_revisar'||gap)?'hl':''}"><td>${fmtCorto(v.fecha)}<br><span class="sm">${v.hora_salida}–${v.hora_llegada}</span></td><td>${a.matricula}</td><td>${esc(nombre(v.piloto_id))}</td><td>${v.safety_pilot_id?`${esc(nombre(v.safety_pilot_id))}<br><span class="sm">${rolAcomp(v)}</span>`:`<span class="sm">${aBordo(v)}</span>`}</td><td>${chipTipo(v.tipo)}${v.aprobacion?'<br>'+chipAprob(v):''}</td><td>${esc(v.aerodromo_salida)} → ${esc(v.aerodromo_destino)}</td><td class="n">${v.tomas}</td><td class="n">${fmtHoro(a,v.horometro_salida_min)} → ${fmtHoro(a,v.horometro_llegada_min)}${gap?`<br><span class="chip bad">salto ${fmtMin(gap)}</span>`:''}</td><td class="n"><b>${fmtMin(minutosVuelo(v))}</b></td><td class="n">${v.descuenta_bono?'Sí':'No'}</td><td>${v.aprobacion==='pendiente'&&v.estado!=='anulado'?`<button class="btn sm" data-act="div-aprobar" data-id="${v.id}">Aprobar</button> `:''}${v.estado==='por_revisar'?'<span class="chip bad">Revisar</span> ':v.estado==='anulado'?'<span class="chip">Anulado</span> ':''}<button class="btn sm ghost" data-act="editar-vuelo" data-id="${v.id}">Editar</button></td></tr>`}})].sort((x,y)=>y.k.localeCompare(x.k)).map(x=>x.h).join('')}</table></div>
+  ${(()=>{const filas=[...(S.filtro==='todos'||S.filtro.startsWith('av')?(DB.calibraciones||[]).filter(c=>S.filtro==='todos'||c.avion_id===+S.filtro.slice(2)).map(c=>{const a=A(c.avion_id);return {k:c.fecha.replace(' ',''),h:`<tr><td>${fmtCorto(c.fecha.slice(0,10))}<br><span class="sm">${c.fecha.slice(11)}</span></td><td>${a.matricula}</td><td colspan="9"><span class="chip">Calibración</span> ${fmtHoro(a,c.anterior_min)} → <b>${fmtHoro(a,c.nuevo_min)}</b> · a nombre de ${esc(nombre(c.piloto_id))}${c.descuenta_bono?' (descontado)':''}${c.motivo?' · '+esc(c.motivo):''} · por ${esc(nombre(c.usuario_id))}</td></tr>`}}):[]),
+  ...vs.map(v=>{const a=A(v.avion_id),gap=v.estado!=='anulado'?cadenaRota(v):0;return {k:v.fecha+v.hora_salida,h:`<tr class="${v.estado==='anulado'?'off':(v.estado==='por_revisar'||gap)?'hl':''}"><td>${fmtCorto(v.fecha)}<br><span class="sm">${v.hora_salida}–${v.hora_llegada}</span></td><td>${a.matricula}</td><td>${esc(nombre(v.piloto_id))}</td><td>${v.safety_pilot_id?`${esc(nombre(v.safety_pilot_id))}<br><span class="sm">${rolAcomp(v)}</span>`:`<span class="sm">${aBordo(v)}</span>`}</td><td>${chipTipo(v.tipo)}${v.aprobacion?'<br>'+chipAprob(v):''}</td><td>${esc(v.aerodromo_salida)} → ${esc(v.aerodromo_destino)}</td><td class="n">${v.tomas}</td><td class="n">${fmtHoro(a,v.horometro_salida_min)} → ${fmtHoro(a,v.horometro_llegada_min)}${gap?`<br><span class="chip bad">salto ${fmtMin(gap)}</span>`:''}</td><td class="n"><b>${fmtMin(minutosVuelo(v))}</b></td><td class="n">${v.descuenta_bono?'Sí':'No'}</td><td>${v.aprobacion==='pendiente'&&v.estado!=='anulado'?`<button class="btn sm" data-act="div-aprobar" data-id="${v.id}">Aprobar</button> `:''}${v.estado==='por_revisar'?'<span class="chip bad">Revisar</span> ':v.estado==='anulado'?'<span class="chip">Anulado</span> ':''}<button class="btn sm ghost" data-act="editar-vuelo" data-id="${v.id}">Editar</button></td></tr>`}})].sort((x,y)=>y.k.localeCompare(x.k));const n=S.lbN||200;
+  return filas.slice(0,n).map(x=>x.h).join('')+'</table>'+(filas.length>n?`<button class="btn ghost" style="margin-top:8px;width:100%" data-act="lb-mas">Ver 200 más · quedan ${filas.length-n} más antiguos</button>`:'')})()}</div>
   <p class="sm">Escuela, divulgación y mantenimiento suben el horómetro del avión, pero no restan bono. Las filas resaltadas no encadenan con el vuelo anterior o están por revisar.</p>`;
 }
 function modalVuelo(){
@@ -894,11 +908,14 @@ function modalVuelo(){
 }
 function aSocios(){
   const sel=S.sel?U(S.sel):null,act=usuariosActivos().length;
-  let h=`<div class="row"><h2>Pilotos · ${act} en activo</h2><button class="btn sm" data-act="alta">+ Alta de piloto</button></div><div class="cols"><div class="card scroll"><table><tr><th>Piloto</th><th>Rol</th><th>Aviones</th><th class="n">Horas</th><th></th></tr>
-  ${DB.usuarios.slice().sort((a,b)=>(a.activo===false)-(b.activo===false)).map(u=>{const sds=saldosDe(u.id),baja=u.activo===false;return `<tr style="${baja?'opacity:.55':''}"><td><b>${esc(u.nombre)}</b>${u.sp?' <span class="chip sp">SP</span>':''}${u.recencia_meses?` <span class="chip warn" title="Exige safety pilot si no ha volado en ${u.recencia_meses} meses">${u.recencia_meses} m</span>`:''}${baja?' <span class="chip bad">De baja</span>':''}${u.alumno?' <span class="chip ok">Alumno escuela</span>':u.reservas===false&&u.rol!=='admin'?' <span class="chip">Solo logbook</span>':''}${u.instructor?' <span class="chip">Instructor</span>':''}<br><span class="sm">${esc(u.email)}</span></td><td>${u.rol==='admin'?'Admin':'Socio'}</td><td class="sm">${u.reservas===false&&u.rol!=='admin'?'—':avionesPara(u.id).map(a=>'<span style="white-space:nowrap">'+a.matricula+(esSuelto(u.id,a.id)?'':' <span title="Necesita safety pilot">(SP)</span>')+'</span>').join('<br>')||'<span class="chip warn">Ninguno</span>'}</td><td class="n">${sds.filter(x=>x.s!==0||DB.bonos.some(b=>b.usuario_id===u.id&&avDe(b)===x.a.id)).map(x=>`<span style="white-space:nowrap"><span class="sm">${x.a.matricula}</span> <span class="${x.s<0?'neg':''}">${fmtMin(x.s)}</span></span>`).join('<br>')||'—'}</td><td><button class="btn sm ${S.sel===u.id?'':'ghost'}" data-act="sel" data-id="${u.id}">Ver</button></td></tr>`}).join('')}</table></div>`;
+  let h=`<div class="row"><h2>Pilotos · ${act} en activo</h2><button class="btn sm" data-act="alta">+ Alta de piloto</button></div><input data-buscar placeholder="Buscar piloto por nombre o correo" value="${esc(S.buscar||'')}" style="margin:8px 0" autocomplete="off"><div class="cols"><div class="card scroll"><table><tr><th>Piloto</th><th>Aviones y horas</th><th class="vercol"></th></tr>
+  ${DB.usuarios.slice().sort((a,b)=>(a.activo===false)-(b.activo===false)).map(u=>{const sds=saldosDe(u.id),baja=u.activo===false,q=(S.buscar||'').toLowerCase(),fuera=q&&!(u.nombre+' '+u.email).toLowerCase().includes(q);return `<tr data-act="sel" data-id="${u.id}" class="trsel${S.sel===u.id?' on':''}" data-q="${esc((u.nombre+' '+u.email).toLowerCase())}" style="${baja?'opacity:.55;':''}${fuera?'display:none':''}"><td><b>${esc(u.nombre)}</b>${u.sp?' <span class="chip sp">SP</span>':''}${u.recencia_meses?` <span class="chip warn" title="Exige safety pilot si no ha volado en ${u.recencia_meses} meses">${u.recencia_meses} m</span>`:''}${baja?' <span class="chip bad">De baja</span>':''}${u.alumno?' <span class="chip ok">Alumno escuela</span>':u.reservas===false&&u.rol!=='admin'?' <span class="chip">Solo logbook</span>':''}${u.instructor?' <span class="chip">Instructor</span>':''}${u.rol==='admin'?' <span class="chip">Admin</span>':''}<br><span class="sm">${esc(u.email)}</span></td><td class="sm">${(()=>{const pu=u.reservas===false&&u.rol!=='admin'?[]:avionesPara(u.id),ids=new Set(pu.map(a=>a.id));
+    const con=sds.filter(x=>x.s!==0||DB.bonos.some(b=>b.usuario_id===u.id&&avDe(b)===x.a.id)),hs=new Map(con.map(x=>[x.a.id,x.s]));
+    const lista=[...pu,...con.map(x=>x.a).filter(a=>!ids.has(a.id))];
+    return lista.map(a=>'<span style="white-space:nowrap">'+(ids.has(a.id)?a.matricula:'<s title="Ya no puede volarlo">'+a.matricula+'</s>')+(ids.has(a.id)&&!esSuelto(u.id,a.id)?' <span title="Necesita safety pilot">(SP)</span>':'')+(hs.has(a.id)?' · <b class="'+(hs.get(a.id)<0?'neg':'')+'">'+fmtMin(hs.get(a.id))+'</b>':'')+'</span>').join('<br>')||(u.reservas===false&&u.rol!=='admin'?'—':'<span class="chip warn">Ninguno</span>')})()}</td><td class="vercol"><button class="btn sm ${S.sel===u.id?'':'ghost'}" data-act="sel" data-id="${u.id}">Ver</button></td></tr>`}).join('')}</table></div>`;
   if(sel){
     const baja=sel.activo===false,misAv=avionesPara(sel.id);
-    h+=`<div class="card" style="display:grid;gap:8px"><div class="row"><h3>${esc(sel.nombre)} ${baja?'<span class="chip bad">De baja</span>':''}</h3><span class="sm" style="text-align:right">${saldosDe(sel.id).map(x=>`${x.a.matricula} <b class="${x.s<0?'neg':''}" style="font:700 1.15rem var(--f-disp);color:${x.s<0?'':'var(--ink)'}">${fmtMin(x.s)}</b>`).join('<br>')}</span></div>
+    h+=`<div class="card" id="ficha-sel" style="display:grid;gap:8px"><div class="row"><h3>${esc(sel.nombre)} ${baja?'<span class="chip bad">De baja</span>':''}</h3><span class="sm" style="text-align:right">${saldosDe(sel.id).map(x=>`${x.a.matricula} <b class="${x.s<0?'neg':''}" style="font:700 1.15rem var(--f-disp);color:${x.s<0?'':'var(--ink)'}">${fmtMin(x.s)}</b>`).join('<br>')}</span></div>
     <div class="chips"><button class="${sel.rol==='admin'?'on':''}" data-act="tog-admin" data-id="${sel.id}">Administrador</button><button class="${sel.sp?'on':''}" data-act="tog-sp" data-id="${sel.id}">Safety pilot</button></div>
     <span class="lbl">Aviones que puede reservar y volar</span>
     <div class="chips">${avionesActivos().map(a=>`<button class="${misAv.some(x=>x.id===a.id)?'on':''}" data-act="tog-av" data-id="${sel.id}" data-a="${a.id}">${misAv.some(x=>x.id===a.id)?'✓ ':''}${a.matricula}</button>`).join('')}</div>
@@ -925,7 +942,7 @@ function bloqueHoras(sel,a){
    <div class="row"><b>${a.matricula} <span class="sm">${esc(a.modelo)}</span></b><b class="${s<0?'neg':''}" style="font:700 1.3rem var(--f-disp)">${fmtMin(s)}</b></div>
    <span class="sm">${mant?'Con paquete de mantenimiento: se gasta primero el de mantenimiento y después los adicionales, del más antiguo al más nuevo.':'Solo paquetes de 10 h, sin mantenimiento ni caducidad.'}${s<0?' El negativo se descuenta del próximo paquete.':''}${asig?'':' · Ya no tiene este avión asignado.'}</span>
    ${bonos.length?bonos.map(b=>`<div class="line"><span>${b.mant?`<span class="chip ${b.caducado?'':'warn'}">Mantenimiento ${temporadaDe(b)}</span> `:'<span class="chip">Adicional</span> '}${esc(b.nota)} · pagado el ${fmtCorto(b.fecha)} ${b.fecha.slice(0,4)}${b.mant?`<br><span class="sm">${b.caducado?'Caducó el '+fmtCorto(b.caduca)+' '+b.caduca.slice(0,4)+(b.perdido?' · se perdieron '+fmtMin(b.perdido):''):'Caduca el '}</span>${b.caducado?'':`<input type="date" data-bcad="${b.id}" value="${b.caduca}" style="width:auto;min-height:28px;padding:2px 6px;font-size:.8rem;margin-left:4px">`}`:''}</span><span class="sm">${b.caducado?'caducado':'quedan '+fmtMin(b.quedan)+' de '+fmtMin(b.minutos)} ${b.quedan===b.minutos&&!b.caducado?`<button class="btn sm danger" style="padding:2px 8px;margin-left:6px" data-act="quitar-bono" data-id="${b.id}" title="Quitar paquete añadido por error">${S.confirm==='b'+b.id?'¿Quitar?':'×'}</button>`:''}</span></div>`).join(''):'<p class="sm">Sin paquetes en este avión.</p>'}
-   <div class="three">${mant?`<div class="field"><label>Añadir paquete</label><select id="bt${aid}" data-bt="${aid}"><option value="mantenimiento">Mantenimiento anual (caduca 30 abr)</option><option value="adicional">Horas adicionales (no caduca)</option></select></div>`:`<div class="field"><label>Añadir paquete</label><input value="Horas" readonly></div>`}<div class="field"><label>Horas</label><input id="bhrs${aid}" type="number" min="1" max="50" step="0.5" value="${mant?6:10}"></div><div class="field"><label>Fecha de pago</label><input type="date" id="bf${aid}" value="${today()}"></div></div>
+   <div class="three st3">${mant?`<div class="field"><label>Añadir paquete</label><select id="bt${aid}" data-bt="${aid}"><option value="mantenimiento">Mantenimiento anual (caduca 30 abr)</option><option value="adicional">Horas adicionales (no caduca)</option></select></div>`:`<div class="field"><label>Añadir paquete</label><input value="Horas" readonly></div>`}<div class="field"><label>Horas</label><input id="bhrs${aid}" type="number" min="1" max="50" step="0.5" value="${mant?6:10}"></div><div class="field"><label>Fecha de pago</label><input type="date" id="bf${aid}" value="${today()}"></div></div>
    <button class="btn sm" data-act="add-bono" data-id="${sel.id}" data-a="${aid}">Añadir paquete al ${a.matricula}</button>
    <div class="two"><input id="aj${aid}" placeholder="± minutos (ej. -30)" inputmode="numeric"><input id="ajm${aid}" placeholder="Motivo del ajuste"></div><button class="btn sm ghost" data-act="add-ajuste" data-id="${sel.id}" data-a="${aid}">Ajuste manual en el ${a.matricula}</button>
    <details><summary class="sm" style="cursor:pointer">Movimientos del ${a.matricula} (${mov.length})</summary>${mov.map(m=>`<div class="line"><span>${esc(m.txt)}<br><span class="sm">${fmtCorto(m.fecha)}</span></span><span class="${m.min<0?'neg':''}">${m.min>0?'+':''}${m.min} min</span></div>`).join('')||'<p class="sm">Sin movimientos.</p>'}</details></div>`;
@@ -940,12 +957,12 @@ function aAviones(){
    ${baja?`<span class="sm">Eliminado: ya no aparece para reservar ni volar. Sus vuelos se conservan en el logbook.</span><button class="btn ghost" data-act="reactivar-avion" data-id="${a.id}">Recuperar avión</button>`:`
    <span class="lbl">Calibrar horómetro</span>
    <div class="sm">Si el horómetro de la app no coincide con el del avión (un error al anotar, minutos en tierra…), escribe la lectura real. Queda registrado a nombre del piloto que elijas y los siguientes vuelos salen de ese valor.</div>
-   <div class="three"><input inputmode="decimal" id="cv${a.id}" placeholder="Lectura real, ej. ${horoInput(a,hr)}" style="font-family:var(--f-mono)"><select id="cp${a.id}">${usuariosActivos().map(u=>`<option value="${u.id}" ${ult&&ult.piloto_id===u.id?'selected':''}>A nombre de ${esc(u.nombre)}</option>`).join('')}</select><input id="cm${a.id}" placeholder="Nota (opcional)"></div>
+   <div class="three st1"><input inputmode="decimal" id="cv${a.id}" placeholder="Lectura real, ej. ${horoInput(a,hr)}" style="font-family:var(--f-mono)"><select id="cp${a.id}">${usuariosActivos().map(u=>`<option value="${u.id}" ${ult&&ult.piloto_id===u.id?'selected':''}>A nombre de ${esc(u.nombre)}</option>`).join('')}</select><input id="cm${a.id}" placeholder="Nota (opcional)"></div>
    <div class="row"><label class="sm" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cd${a.id}" style="width:auto;min-height:0"> Descontar la diferencia del bono de ese piloto</label><button class="btn sm" data-act="calibrar" data-id="${a.id}">Calibrar</button></div>
    <span class="sm">${AYUDA_HORO(a)}${ult?' · Último vuelo: '+esc(nombre(ult.piloto_id))+', '+fmtCorto(ult.fecha):''}</span>`}
    ${(DB.calibraciones||[]).filter(c=>c.avion_id===a.id).slice().reverse().map(c=>`<div class="line"><span>${fmtHoro(a,c.anterior_min)} → <b>${fmtHoro(a,c.nuevo_min)}</b> <span class="chip ${c.nuevo_min<c.anterior_min?'warn':''}">${c.nuevo_min>=c.anterior_min?'+':'−'}${fmtMin(Math.abs(c.nuevo_min-c.anterior_min))}</span> a nombre de <b>${esc(nombre(c.piloto_id))}</b>${c.descuenta_bono?' · descontado del bono':''}${c.motivo?'<br><span class="sm">'+esc(c.motivo)+'</span>':''}</span><span class="sm">${esc(nombre(c.usuario_id))} · ${esc(c.fecha)}</span></div>`).join('')}
    ${baja?'':`<span class="lbl">Bloqueos</span>${bs.length?bs.map(b=>`<div class="line"><span>${esc(b.motivo)} · ${fmtCorto(b.inicio.slice(0,10))}${b.fin.slice(0,10)!==b.inicio.slice(0,10)?' a '+fmtCorto(b.fin.slice(0,10)):''}</span><button class="btn sm danger" data-act="quitar-bloqueo" data-id="${b.id}">Quitar</button></div>`).join(''):'<p class="sm">Sin bloqueos.</p>'}
-   <div class="three"><input type="date" id="bd${a.id}" value="${today()}"><input type="date" id="bh${a.id}" value="${today()}"><input id="bm${a.id}" placeholder="Motivo"></div><button class="btn sm ghost" data-act="bloquear" data-id="${a.id}">Bloquear avión esos días</button>
+   <div class="three st2"><input type="date" id="bd${a.id}" value="${today()}"><input type="date" id="bh${a.id}" value="${today()}"><input id="bm${a.id}" placeholder="Motivo"></div><button class="btn sm ghost" data-act="bloquear" data-id="${a.id}">Bloquear avión esos días</button>
    <div class="row"><button class="btn sm ghost" data-act="editar-avion" data-id="${a.id}">Editar datos</button><button class="btn sm danger" data-act="borrar-avion" data-id="${a.id}">${S.confirm==='a'+a.id?'Pulsa otra vez para eliminar '+a.matricula:'Eliminar avión'}</button></div>
    ${conHist?'<span class="sm">Al eliminarlo desaparece de las reservas y de «Volar», pero sus vuelos siguen en el logbook y en las descargas.</span>':''}`}</div>`}).join('');
   return h+`<p class="sm">Al bloquear o dar de baja un avión, sus reservas afectadas se cancelan y (en la app real) se avisa por correo a los pilotos.</p>`;
@@ -1094,7 +1111,8 @@ function aDescargas(){
 }
 
 /* ---------- render ---------- */
-function render(){
+function render(){_EH=new Map();try{render_()}finally{_EH=null}}
+function render_(){
   const app=document.getElementById('app');
   if(S.estado!=='app'||!me()){app.innerHTML=vLogin()+(S.toast?`<div class="toast">${esc(S.toast)}</div>`:'');return}
   let body='';
@@ -1135,7 +1153,9 @@ const act={
 wk:e=>{S.wk=addDays(S.wk||today(),7*e.dataset.v);render()},wkhoy:()=>{S.wk=today();render()},
 rv:e=>{S.rv=e.dataset.v;render()},
 wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calendario';render()},
-  filtro:e=>{S.filtro=e.dataset.v;render()},
+  filtro:e=>{S.filtro=e.dataset.v;S.lbN=0;render()},
+  'ver-todo':e=>{S.ver=e.dataset.v;render()},
+  'lb-mas':()=>{S.lbN=(S.lbN||200)+200;render()},
   cerrar:()=>{S.modal=null;if(S.form&&S.form.kind==='reserva')S.form=null;render()},
   export:()=>{S.modal={kind:'export',titulo:'Datos del prototipo (JSON)',ayuda:'Copia de todo lo que has hecho en el prototipo. Sirve como copia o para pasármelo.',texto:JSON.stringify(DB,null,1)};render()},
   'export-log':()=>{const u=me();const t=DB.vuelos.filter(v=>v.piloto_id===u.id&&v.estado!=='anulado').map(v=>[v.fecha,A(v.avion_id).matricula,TIPO_TXT[v.tipo],v.aerodromo_salida,v.aerodromo_destino,v.hora_salida,v.hora_llegada,minutosVuelo(v),v.tomas,v.acompanante?'Sí':'No'].join('\t'));S.modal={kind:'export',titulo:'Mis vuelos',ayuda:'Pégalo en Excel o en una hoja de cálculo.',texto:['Fecha\tAvión\tTipo\tSalida\tDestino\tHora salida\tHora llegada\tMinutos\tTomas\tAcompañante',...t].join('\n')};render()},
@@ -1207,7 +1227,7 @@ wkdia:e=>{if(S.modo==='admin')return;S.day=e.dataset.v;S.rv='dia';S.view='calend
   'mv-revisado':()=>{const f=S.modal,v=DB.vuelos.find(x=>x.id===f.id);v.estado='ok';log('Revisado',v.id,'Marcado como revisado',f.motivo.trim());save();toast('Vuelo dado por revisado')},
   'mv-anular':()=>{const f=S.modal,v=DB.vuelos.find(x=>x.id===f.id);if(!f.motivo.trim())return toast('Escribe el motivo antes de anular.');v.estado='anulado';log('Anulado',v.id,'Vuelo anulado: ya no cuenta en horómetro ni en saldo',f.motivo.trim());save();f.motivo='';toast('Vuelo anulado')},
   'mv-reactivar':()=>{const f=S.modal,v=DB.vuelos.find(x=>x.id===f.id);if(!f.motivo.trim())return toast('Escribe el motivo.');v.estado='ok';log('Reactivado',v.id,'',f.motivo.trim());save();f.motivo='';toast('Vuelo reactivado')},
-  sel:e=>{S.sel=+e.dataset.id;S.confirm=null;render()},
+  sel:e=>{S.sel=+e.dataset.id;S.confirm=null;render();if(innerWidth<900){const f=document.getElementById('ficha-sel');if(f)f.scrollIntoView({behavior:'smooth',block:'start'})}},
   'tog-admin':e=>{const u=U(+e.dataset.id);if(u.id===S.user&&u.rol==='admin')return toast('No puedes quitarte a ti mismo el rol de administrador.');u.rol=u.rol==='admin'?'socio':'admin';save();render()},
   'tog-sp':e=>{const u=U(+e.dataset.id);u.sp=!u.sp;save();render()},
   'tog-suelto':e=>{const uid=+e.dataset.id,aid=+e.dataset.a;const i=DB.suelto.findIndex(s=>s[0]===uid&&s[1]===aid);if(i>=0)DB.suelto.splice(i,1);else DB.suelto.push([uid,aid]);save();render()},
@@ -1295,12 +1315,13 @@ document.addEventListener('change',e=>{
   if(t.dataset.dlsel){S[t.dataset.dlsel]=+t.value}
   if(t.dataset.rf){(S.rf||(S.rf={cat:'',por:'',d1:'',d2:''}))[t.dataset.rf]=t.value;S.rlim=200;render()}
   if(t.dataset.p&&S.perfil){S.perfil[t.dataset.p]=t.value;if(t.type==='date')render()}
-  if(t.dataset.filtropil!==undefined){S.filtro=t.value?'pil'+t.value:'todos';render()}
+  if(t.dataset.filtropil!==undefined){S.filtro=t.value?'pil'+t.value:'todos';S.lbN=0;render()}
   if(t.dataset.doc){const u=U(+t.dataset.id);u[t.dataset.doc]=t.value||null;save();toast('Fecha guardada')}
 });
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.f&&S.form&&S.form.kind==='vuelo'&&t.tagName!=='SELECT'){S.form[t.dataset.f]=t.value;prevVuelo()}
+  if(t.dataset.buscar!==undefined){S.buscar=t.value;const q=t.value.toLowerCase();document.querySelectorAll('tr[data-q]').forEach(r=>{r.style.display=!q||r.dataset.q.includes(q)?'':'none'})}
   if(t.dataset.m&&S.modal){S.modal[t.dataset.m]=t.value}
   if(t.dataset.l){(S.login||(S.login={}))[t.dataset.l]=t.value}
 });

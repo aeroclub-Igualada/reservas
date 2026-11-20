@@ -410,7 +410,8 @@ function alCambiar(){if(PEND.size)return;LISTO=true;rebuild();if(!me()){document
 function escuchar(esIns){
   UNSUB.forEach(f=>{try{f()}catch(e){}});UNSUB=[];
   const L=(c,f)=>{PEND.add(c);UNSUB.push(API.listen(c,f,docs=>{const m=raw(c);m.clear();docs.forEach(d=>m.set(d.id,d.data));PEND.delete(c);alCambiar()},e=>{console.error(c,e);PEND.delete(c);alCambiar()}))};
-  ['usuarios','aviones','reservas','bloqueos'].forEach(c=>L(c,null));
+  ['usuarios','aviones','bloqueos'].forEach(c=>L(c,null));
+  {const x=new Date();x.setDate(x.getDate()-60);L('reservas',{field:'fin',op:'>=',value:x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')})}
   const mio=ES_PRINCIPAL?null:ES_ALUMNO?{field:'alumno',value:YO}:{field:'tutor',value:YO};
   L('escuela_alumnos',ES_PRINCIPAL?null:ES_ALUMNO?{docId:String(YO)}:{field:'tutor',value:YO});
   ['escuela_paquetes','escuela_ajustes','escuela_comentarios'].forEach(c=>L(c,mio));
@@ -426,7 +427,7 @@ async function crearApiFirebase(){
     getDoc:async(c,id)=>{const s=await Fs.getDoc(Fs.doc(db,c,id));return s.exists()?s.data():null},
     listen:(c,f,cb,err)=>{
       if(f&&f.docId)return Fs.onSnapshot(Fs.doc(db,c,f.docId),s=>cb(s.exists()?[{id:s.id,data:s.data()}]:[]),err);
-      const ref=f?Fs.query(Fs.collection(db,c),Fs.where(f.field,'==',f.value)):Fs.collection(db,c);
+      const cs=[];if(f&&f.field)cs.push(Fs.where(f.field,f.op||'==',f.value));if(f&&f.order)cs.push(Fs.orderBy(f.order,'desc'));if(f&&f.limit)cs.push(Fs.limit(f.limit));const ref=cs.length?Fs.query(Fs.collection(db,c),...cs):Fs.collection(db,c);
       return Fs.onSnapshot(ref,s=>cb(s.docs.map(d=>({id:d.id,data:d.data()}))),err)},
     commit:async ops=>{for(let i=0;i<ops.length;i+=400){const w=Fs.writeBatch(db);ops.slice(i,i+400).forEach(o=>o.op==='delete'?w.delete(Fs.doc(db,o.col,o.id)):w.set(Fs.doc(db,o.col,o.id),o.data));await w.commit()}},
     crearCuenta:async email=>{const sec=A_.initializeApp(FIREBASE_CONFIG,'alta'+Date.now()),sa=Au.getAuth(sec);let estado='creada';
@@ -495,7 +496,6 @@ function toast(t){S.toast=t;render();clearTimeout(toast.t);toast.t=setTimeout(()
 
 /* ---------- entrada ---------- */
 function vLogin(){return '<p class="cargando">Cargando la escuela…</p>'}
-const rolTxt=u=>u.rol==='principal'?'Cuenta principal Aeroclub':u.rol==='admin'?'Administrador del club (no principal)':u.rol==='alumno'?(u.al.estado==='piloto'?'Piloto · licencia '+(u.al.licencia||''):'Alumno · instructor '+nombre1(UN(u.al.instructor).nombre)):(u.instructor?'Instructor':'Piloto del club (socio)');
 
 /* =====================================================================
    ALUMNO
@@ -738,15 +738,6 @@ function formNota(v){
    <div class="field"><label>Horómetro de llegada (corrígelo si el alumno se equivocó)</label><input data-n="lle" value="${esc(N.lle)}" style="font-family:var(--f-mono)"></div></div>
    <button class="btn full" data-act="guardar-nota" data-id="${v.id}">Guardar nota</button>`;
 }
-function iLogbook(){
-  const u=me(),vs=DB.vuelos.filter(v=>v.instructor===u.id&&v.tipo==='dm').sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
-  const tot=vs.reduce((s,v)=>s+v.min,0);
-  return `<div class="msg info">En la app real este es tu logbook de siempre. Aquí solo se muestran los vuelos que llegan solos desde la Escuela.</div>
-  <div class="row"><h2>Logbook ULM</h2><span class="sm">${esc(u.nombre)}</span></div>
-  <div class="tl"><div>Como instructor<b>${hm(tot)}</b></div><div>Vuelos<b>${vs.length}</b></div><div>Alumnos<b>${new Set(vs.map(v=>v.alumno)).size}</b></div><div>Este mes<b>${hm(vs.filter(v=>v.fecha.slice(0,7)===today().slice(0,7)).reduce((s,v)=>s+v.min,0))}</b></div></div>
-  <div class="card">${vs.slice(0,30).map(v=>{const d=new Date(v.fecha+'T12:00');return `<div class="fl"><div class="d">${d.getDate()}<br>${MESES[d.getMonth()].slice(0,3)}</div><div><b>${A(v.avion).mat} · ${esc(v.salida.split('-')[0])}</b> <span class="typ in">Instructor</span><div class="sm">Alumno ${esc(UN(v.alumno).nombre)} · ${esc(lecTxt(v.leccion))}</div></div><b>${hm(v.min)}</b></div>`}).join('')||'<p class="sm">Sin vuelos como instructor.</p>'}</div>
-  <p class="sm">Solo entran los vuelos en doble mando, porque vas a bordo. Los vuelos solos supervisados desde tierra quedan en la ficha del alumno, con tu nombre, pero no suman horas a tu logbook. No te descuentan horas de tus paquetes.</p>`;
-}
 function lunes(s){const d=new Date(s+'T12:00'),w=(d.getDay()+6)%7;return addDays(s,-w)}
 function iPlanning(){
   const ini=S.wk||lunes(today()),fin=addDays(ini,6),u=me(),ver=esPrincipal()?(S.pins||'todos'):u.id;
@@ -853,20 +844,6 @@ function modalPasar(){
   <div class="two"><button class="btn ghost" data-act="cerrar">Cancelar</button><button class="btn" style="background:var(--ok)" data-act="confirmar-pasar">Pasar a piloto</button></div>`;
 }
 /* ---------- vista del alumno que ya es piloto (resultado del paso) ---------- */
-function vPiloto(){
-  const u=me(),lb=u.logbook||[],tot=lb.reduce((s,v)=>s+v.min,0),s=x=>lb.filter(v=>v.tipo===x).reduce((a,v)=>a+v.min,0);
-  let h=topBar(S.parte==='reservas'?'Aeroclub · Reservas':'Mi logbook')+`<div class="parte">${(u.reservasClub?[['logbook','Mi logbook'],['reservas','Reservas del club']]:[['logbook','Mi logbook']]).map(([k,t])=>`<button class="${(S.parte==='reservas'?'reservas':'logbook')===k?'on':''}" data-act="parte" data-v="${k}">${t}</button>`).join('')}</div><div class="wrap">`;
-  if(S.parte==='reservas'&&u.reservasClub){h+=`<div class="msg info">En la app real aquí está la parte de Reservas que ya tenéis.</div><div class="card"><span class="lbl">Mis horas</span><div class="row" style="align-items:end;margin-top:6px"><div><div class="sm"><b style="color:var(--ink)">${A(u.reservasClub.avion).mat}</b> · ${esc(A(u.reservasClub.avion).modelo)}</div><div class="big ${u.reservasClub.min<0?'neg':''}">${hmTxt(u.reservasClub.min)}</div></div><span class="chip ok">Pasadas de la escuela</span></div></div>`;return h+'</div>'}
-  h+=`<div class="msg ok">🎉 ¡Enhorabuena, ${esc(nombre1(u.nombre))}! Ya eres piloto. Tu formación está en tu logbook.</div>
-  <div class="row"><h2>Logbook ULM</h2><span class="sm" style="font-family:var(--f-mono)">${esc(u.al.licencia||'')}</span></div>
-  <div class="tl"><div>Total<b>${hm(tot)}</b></div><div>Doble mando<b>${hm(s('dm'))}</b></div><div>Solo<b>${hm(s('solo'))}</b></div><div>Vuelos<b>${lb.length}</b></div></div>
-  <div class="card">${lb.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(v=>{const d=new Date(v.fecha+'T12:00');return `<div class="fl"><div class="d">${d.getDate()}<br>${MESES[d.getMonth()].slice(0,3)}<br>${v.fecha.slice(2,4)}</div><div><b>${A(v.avion).mat} · ${+v.leccion?'L'+v.leccion:'Práctica'}</b> ${typ(v.tipo)}<div class="sm">${v.tipo==='examen'?'Examinador '+esc(v.examinador):(v.tipo==='solo'?'Instructor en tierra ':'Instructor ')+esc(UN(v.instructor).nombre)} · ${v.tomas} toma${+v.tomas===1?'':'s'}</div></div><b>${hm(v.min)}</b></div>`}).join('')}</div>`;
-  return h+'</div>';
-}
-function vOtroAdmin(){return topBar('Aeroclub · Reservas','<button class="pill on">Administrador</button>')+`<div class="wrap"><div class="atabs chips"><button disabled>Resumen</button><button disabled>Logbook</button><button disabled>Pilotos y horas</button><button disabled>Aviones</button><button disabled>Descargas</button></div>
-  <div class="card"><h3>${esc(me().nombre)} · administrador del club</h3><p class="sm" style="margin-top:6px">Como no eres la cuenta principal ni instructor, <b>no ves la pestaña Escuela</b>: ni sus alumnos, ni sus horas, ni el botón para pasar a piloto. Todo lo demás de la app (reservas, aviones, pilotos…) lo sigues gestionando igual que ahora.</p></div>
-  <div class="msg info">Para probarlo, entra como «Aeroclub», abre «Instructores» y marca a ${esc(nombre1(me().nombre))} como instructor: entonces verá la Escuela con sus alumnos.</div></div>`}
-
 /* =====================================================================
    PINTAR
    ===================================================================== */
